@@ -697,6 +697,7 @@ dependencies = [
  "dotenv",
  "ethers",
  "eyre",
+ "rand",
  "tokio",
 ]
 
