@@ -1,7 +1,6 @@
 // todo: check which tokens are supported
 // todo: change token balance
 // todo: usage from cli (use bin)
-// todo: export to csv (bin)
 // ? All slot refs to H256 (instead of U256)?
 
 use ethers::prelude::*;
@@ -89,19 +88,19 @@ async fn slot_update_to_bal_ratio(
         Language::Solidity => solidity_mapping_loc(&slot, &H256::from(holder)),
         Language::Vyper => vyper_mapping_loc(&slot, &H256::from(holder)),
     };
-    println!("Map loc: {:#?}", map_loc);
+    // println!("Map loc: {:#?}", map_loc);
     let old_val = get_storage_val(provider, storage_contract, map_loc).await?;
-    println!("Old val: {:#?}", old_val);
+    // println!("Old val: {:#?}", old_val);
     let new_val_u64 = rand::random::<u128>();
     let new_val = utils::u256_to_h256(U256::from(new_val_u64));
-    println!("New val: {:#?}", new_val);
+    // println!("New val: {:#?}", new_val);
     anvil_update_storage(provider, storage_contract, map_loc, new_val).await?;
-    println!("Updated storage");
+    // println!("Updated storage");
     let mut call_request = TypedTransaction::Legacy(balanceof_call_req(holder, token)?);
     call_request.set_gas(100_000); // ! Necessary to set gas otherwise changing the wrong storage could incur a lot of processing eg. 0xf25c91c87e0b1fd9b4064af0f427157aab0193a7(Ethereum)
-    println!("Call request: {:#?}", call_request);
+    // println!("Call request: {:#?}", call_request);
     let balance = provider.call(&call_request, None).await?;
-    println!("Balance: {:#?}", balance);
+    // println!("Balance: {:#?}", balance);
     let balance = utils::bytes_to_h256(balance);
     anvil_update_storage(provider, storage_contract, map_loc, old_val).await?; // Change the storage value back to the original
     if balance == old_val {
@@ -113,6 +112,7 @@ async fn slot_update_to_bal_ratio(
     } else {
         u128::max_value()
     } as f64 / 10_000.;
+    // let update_ratio = (utils::h256_to_u256(balance).as_u128()) as f64 / new_val_u64 as f64;
     Ok(update_ratio)
 }
 
@@ -207,7 +207,7 @@ fn find_slot(
         
         if log.op == "SLOAD" {
             // handle_sload_op
-            println!("{:#?}", log.clone());
+            // println!("{:#?}", log.clone());
             if log.memory.as_ref().map(|m|m.len() < 2).unwrap_or(true) || log.stack.as_ref().is_none() || log.storage.as_ref().is_none() {
                 continue;
             }
@@ -229,13 +229,13 @@ fn find_slot(
             }
         } else if log.op == "STATICCALL" || log.op == "CALL" {
             // handle_staticcall_op
-            println!("staticcall/call: {:#?}", log.clone());
+            // println!("staticcall/call: {:#?}", log.clone());
             let stack = log.stack.unwrap();
             let address = utils::u256_to_h160(stack[stack.len()-2]);
             depth_to_address.insert(depth + 1, address);
         } else if log.op == "DELEGATECALL" {
             // handle_delegatecall_op
-            println!("delegatecall: {:#?}", log.clone());
+            // println!("delegatecall: {:#?}", log.clone());
             let prev_address = *depth_to_address.get(&depth).unwrap();
             depth_to_address.insert(depth + 1, prev_address);
         } else if log.op == "SHA3" {
@@ -255,7 +255,7 @@ fn find_slot(
                 let hashed_val_1: [u8; 32] = hashed_val[32..64].to_vec().try_into().unwrap();
                 hashed_vals.insert(hash, (H256(hashed_val_0), H256(hashed_val_1)));
             }
-            println!("sha3: {:#?}", log.clone());
+            // println!("sha3: {:#?}", log.clone());
         }
     }
 

@@ -36,7 +36,7 @@ async fn test_popular_tokens_support() -> Result<()> {
     
     for (symbol, token) in ethereum_tokens {
         println!("Checking {symbol}({token:?})");
-        match erc20_topup::find_slot(&anvil.endpoint(), token).await {
+        match erc20_topup::find_slot(anvil.endpoint(), token, None).await {
             Ok((contract, slot, update_ratio)) => println!("{symbol}({token:?}): {contract:?} - {slot:?} / ΔR: {update_ratio}"),
             Err(e) => println!("{symbol}({token:?}): {e}"),
         }
