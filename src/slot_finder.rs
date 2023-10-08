@@ -107,7 +107,12 @@ async fn slot_update_to_bal_ratio(
     if balance == old_val {
         return Err(eyre::eyre!("BalanceOf reflects old storage"));
     }
-    let update_ratio = (utils::h256_to_u256(balance).as_u128()) as f64 / new_val_u64 as f64;
+    let ur_bn = utils::h256_to_u256(balance) * U256::from(10_000) / U256::from(new_val_u64);
+    let update_ratio = if ur_bn <= U256::max_value() / U256::from(2) {
+        ur_bn.as_u128()
+    } else {
+        u128::max_value()
+    } as f64 / 10_000.;
     Ok(update_ratio)
 }
 
