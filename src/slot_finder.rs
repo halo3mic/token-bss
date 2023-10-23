@@ -2,6 +2,8 @@
 // todo: change token balance
 // todo: usage from cli (use bin)
 // ? All slot refs to H256 (instead of U256)?
+// ! Works with Foundry release `nightly-ca67d15f4abd46394b324c50e21e66f306a1162d`
+
 
 use ethers::prelude::*;
 use ethers::providers::{Provider, Http};
@@ -14,11 +16,6 @@ use ethers::types::transaction::eip2718::TypedTransaction;
 use super::utils;
 use rand;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Language {
-    Solidity,
-    Vyper,
-}
 
 const balanceof_4byte: &str = "0x70a08231";
 
@@ -26,54 +23,41 @@ pub async fn find_balance_slots_and_update_ratio(
     provider: &Provider<Http>,
     holder: H160, 
     token: H160,
-) -> Result<(H160, U256, f64)> {
+) -> Result<(H160, H256, f64, String)> {
     let slots = find_balance_slots(provider, holder, token).await?;
     for (contract, slot, lang) in slots {
-        let slot_h256 = utils::u256_to_h256(slot);
         if let Ok(update_ratio) = 
             slot_update_to_bal_ratio(
                 &provider, 
                 token, 
                 contract, 
-                slot_h256, 
+                slot, 
                 holder, 
                 lang
             ).await 
         {
-            return Ok((contract, slot, update_ratio));
+            return Ok((contract, slot, update_ratio, lang.to_string()));
         }
     }
     Err(eyre::eyre!("No valid slots found"))
 }
 
-pub async fn find_balance_slots(
-    provider: &Provider<Http>,
-    holder: H160, 
+// ? if desired balance is already obtained skip the part below
+pub async fn update_balance(
+    provider: &Provider<Http>, 
     token: H160,
-) -> Result<Vec<(H160, U256, Language)>> {
-    let tx_request = balanceof_call_req(holder, token)?;
-    let response = default_trace_call(provider, tx_request, None).await?;
-    let return_val = utils::bytes_to_h256(response.return_value);
-    let matches = find_slot(response.struct_logs, holder, token, &return_val)?;
-
-    Ok(matches)
+    holder: H160,
+    new_bal: U256,
+    storage_contract: H160, // Contract where slot is located
+    slot: H256,
+    lang_str: String,
+) -> Result<U256> {
+    let lang = EvmLanguage::from_str(&lang_str)?;
+    let map_loc = lang.mapping_loc(slot, holder);
+    _update_balance(&provider, storage_contract, map_loc, new_bal).await?;
+    let reflected_bal = fetch_balanceof(&provider, token, holder).await?;
+    Ok(utils::h256_to_u256(reflected_bal))
 }
-
-fn balanceof_call_req(holder: H160, token: H160) -> Result<TransactionRequest> {
-    Ok(TransactionRequest::new()
-        .from(holder)
-        .to(token)
-        .data(balanceof_input_data(holder)?)
-    )
-}
-
-fn balanceof_input_data(holder: H160) -> Result<Bytes> {
-    let holder = format!("{:?}", holder)[2..].to_string();
-    let data_str = format!("{balanceof_4byte}000000000000000000000000{holder}");
-    let data = Bytes::from_hex(data_str)?;
-    Ok(data)
-}
-
 
 /// Check change in storage val is reflected in return value of balanceOf 
 async fn slot_update_to_bal_ratio(
@@ -82,51 +66,99 @@ async fn slot_update_to_bal_ratio(
     storage_contract: H160, // Contract where slot is located
     slot: H256,
     holder: H160,
-    lang: Language,
+    lang: EvmLanguage,
 ) -> Result<f64> {
-    let map_loc = match lang {
-        Language::Solidity => solidity_mapping_loc(&slot, &H256::from(holder)),
-        Language::Vyper => vyper_mapping_loc(&slot, &H256::from(holder)),
-    };
-    // println!("Map loc: {:#?}", map_loc);
+    let map_loc = lang.mapping_loc(slot, holder);
     let old_val = get_storage_val(provider, storage_contract, map_loc).await?;
-    // println!("Old val: {:#?}", old_val);
-    let new_val_u64 = rand::random::<u128>();
-    let new_val = utils::u256_to_h256(U256::from(new_val_u64));
-    // println!("New val: {:#?}", new_val);
-    anvil_update_storage(provider, storage_contract, map_loc, new_val).await?;
-    // println!("Updated storage");
-    let mut call_request = TypedTransaction::Legacy(balanceof_call_req(holder, token)?);
-    call_request.set_gas(100_000); // ! Necessary to set gas otherwise changing the wrong storage could incur a lot of processing eg. 0xf25c91c87e0b1fd9b4064af0f427157aab0193a7(Ethereum)
-    // println!("Call request: {:#?}", call_request);
-    let balance = provider.call(&call_request, None).await?;
-    // println!("Balance: {:#?}", balance);
-    let balance = utils::bytes_to_h256(balance);
-    anvil_update_storage(provider, storage_contract, map_loc, old_val).await?; // Change the storage value back to the original
-    if balance == old_val {
+
+    let new_slot_val: u128 = rand_num();
+    _update_balance(&provider, storage_contract, map_loc, U256::from(new_slot_val)).await?;
+
+    let new_bal = fetch_balanceof(&provider, token, holder).await?;
+    // Change the storage value back to the original
+    anvil_update_storage(provider, storage_contract, map_loc, old_val).await?;
+    
+    if new_bal == old_val {
         return Err(eyre::eyre!("BalanceOf reflects old storage"));
     }
-    let ur_bn = utils::h256_to_u256(balance) * U256::from(10_000) / U256::from(new_val_u64);
-    let update_ratio = if ur_bn <= U256::max_value() / U256::from(2) {
-        ur_bn.as_u128()
-    } else {
-        u128::max_value()
-    } as f64 / 10_000.;
-    // let update_ratio = (utils::h256_to_u256(balance).as_u128()) as f64 / new_val_u64 as f64;
+    let update_ratio = 
+        ratio_f64(
+            utils::h256_to_u256(new_bal), 
+            U256::from(new_slot_val),
+            None
+        );
     Ok(update_ratio)
 }
 
-pub fn solidity_mapping_loc(storage_index: &H256, key: &H256) -> H256 {
-    mapping_loc(key.into_token(), storage_index.into_token())
+// todo: merge this function with above one
+async fn _update_balance(
+    provider: &Provider<Http>, 
+    storage_contract: H160,
+    map_loc: H256,
+    new_bal: U256,
+) -> Result<()> {
+    let new_bal = utils::u256_to_h256(new_bal);
+    anvil_update_storage(provider, storage_contract, map_loc, new_bal).await?;
+    Ok(())
 }
 
-pub fn vyper_mapping_loc(storage_index: &H256, key: &H256) -> H256 {
-    mapping_loc(storage_index.into_token(), key.into_token())
+fn rand_num<T>() -> T 
+    where rand::distributions::Standard: rand::distributions::Distribution<T>
+{
+    rand::random::<T>()
 }
 
-pub fn mapping_loc(token_0: Token, token_1: Token) -> H256 {
-    let hash_input = ethers::abi::encode(&[ token_0, token_1 ]);
-    ethers::utils::keccak256(hash_input).into()
+pub async fn find_balance_slots(
+    provider: &Provider<Http>,
+    holder: H160, 
+    token: H160,
+) -> Result<Vec<(H160, H256, EvmLanguage)>> {
+    let tx_request = balanceof_call_req(holder, token)?;
+    let response = default_trace_call(provider, tx_request, None).await?;
+    let matches = find_slot(response.struct_logs, holder, token)?;
+
+    Ok(matches)
+}
+
+async fn fetch_balanceof(
+    provider: &Provider<Http>,
+    token: H160, 
+    holder: H160
+) -> Result<H256> {
+    let call_request = balanceof_call_req(holder, token)?;
+    let mut tx = TypedTransaction::Legacy(call_request);
+    tx.set_gas(100_000); // ! Necessary to set gas otherwise changing the wrong storage could incur a lot of processing eg. 0xf25c91c87e0b1fd9b4064af0f427157aab0193a7(Ethereum)
+    let balance = provider.call(&tx, None).await?;
+    let balance = utils::bytes_to_h256(balance);
+    Ok(balance)
+}
+
+fn balanceof_call_req(holder: H160, token: H160) -> Result<TransactionRequest> {
+    let call_req = TransactionRequest::new()
+        .from(holder)
+        .to(token)
+        .data(balanceof_input_data(holder)?);
+    Ok(call_req)
+}
+
+fn balanceof_input_data(holder: H160) -> Result<Bytes> {
+    // todo: use Bytes instead of strings
+    let holder = format!("{:?}", holder)[2..].to_string();
+    let data_str = format!("{balanceof_4byte}000000000000000000000000{holder}");
+    let data = Bytes::from_hex(data_str)?;
+    Ok(data)
+}
+
+fn ratio_f64(val1: U256, val2: U256, precision_mul: Option<u128>) -> f64 {
+    let p_mul = precision_mul.unwrap_or(10_000);
+    let ur_bn = val1 * U256::from(p_mul) / val2;
+    let update_ratio = 
+        if ur_bn <= U256::max_value() / U256::from(2) {
+            ur_bn.as_u128()
+        } else {
+            u128::max_value()
+        } as f64 / p_mul as f64;
+    update_ratio
 }
 
 async fn anvil_update_storage(
@@ -195,8 +227,7 @@ fn find_slot(
     struct_logs: Vec<StructLog>, 
     holder: H160, 
     token: H160, 
-    return_val: &H256
-) -> Result<Vec<(H160, U256, Language)>> {
+) -> Result<Vec<(H160, H256, EvmLanguage)>> {
     let mut depth_to_address = HashMap::new();
     depth_to_address.insert(1, token);
     let mut results = HashSet::new();
@@ -217,14 +248,14 @@ fn find_slot(
                 if let Some((hashed_val_0, hashed_val_1)) = hashed_vals.get(slot_idx) {
                     let (slot, lang) = 
                         if &H256::from(holder) == hashed_val_0 {
-                            (*hashed_val_1, Language::Solidity)
+                            (*hashed_val_1, EvmLanguage::Solidity)
                         } else if &H256::from(holder) == hashed_val_1 {
-                            (*hashed_val_0, Language::Vyper)
+                            (*hashed_val_0, EvmLanguage::Vyper)
                         } else {
                             continue;
                         };
                     let contract = depth_to_address.get(&depth).unwrap();
-                    results.insert((*contract, utils::h256_to_u256(slot), lang));
+                    results.insert((*contract, slot, lang));
                 }
             }
         } else if log.op == "STATICCALL" || log.op == "CALL" {
@@ -262,6 +293,51 @@ fn find_slot(
     Ok(results.into_iter().collect())
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EvmLanguage {
+    Solidity,
+    Vyper,
+}
+
+impl EvmLanguage {
+
+    fn mapping_loc(&self, slot: H256, holder: H160) -> H256 {
+         match &self {
+            EvmLanguage::Solidity => Self::solidity_mapping_loc(&slot, &H256::from(holder)),
+            EvmLanguage::Vyper => Self::vyper_mapping_loc(&slot, &H256::from(holder)),
+        }
+    }
+
+    fn solidity_mapping_loc(storage_index: &H256, key: &H256) -> H256 {
+        Self::mapping_loc_from_tokens(key.into_token(), storage_index.into_token())
+    }
+    
+    fn vyper_mapping_loc(storage_index: &H256, key: &H256) -> H256 {
+        Self::mapping_loc_from_tokens(storage_index.into_token(), key.into_token())
+    }
+
+    fn mapping_loc_from_tokens(token_0: Token, token_1: Token) -> H256 {
+        let hash_input = ethers::abi::encode(&[ token_0, token_1 ]);
+        ethers::utils::keccak256(hash_input).into()
+    }
+
+    fn to_string(&self) -> String {
+        match &self {
+            EvmLanguage::Solidity => String::from("solidity"),
+            EvmLanguage::Vyper => String::from("vyper"),
+        }
+    }
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s.to_lowercase().as_str() {
+            "solidity" => Ok(EvmLanguage::Solidity),
+            "vyper" => Ok(EvmLanguage::Vyper),
+            _ => Err(eyre::eyre!("Invalid language")),
+        }
+    }
+
+}
+// Finding balance slots for 0x1f9090aae28b8a3dceadf281b0f12828e676c326 0xdac17f958d2ee523a2206206994597c13d831ec7
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -273,14 +349,14 @@ mod tests {
         let config = Config::from_env()?;
         let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&config.eth_rpc_endpoint))?;
 
-        let token: H160 = "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F".parse().unwrap();
-        let holder: H160 = "0x0Ff31c2544B2288C6544aAD39dEF9Ab2472404F8".parse().unwrap();
+        let token: H160 = "0xdac17f958d2ee523a2206206994597c13d831ec7".parse().unwrap();
+        let holder: H160 = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 
         let result = find_balance_slots(&provider, holder, token).await?;
-        // println!("{:#?}", result);
+        println!("{:#?}", result);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].0, "0x5b1b5fea1b99d83ad479df0c222f0492385381dd".parse::<H160>().unwrap());
-        assert_eq!(result[0].1, U256::from(3));
+        assert_eq!(result[0].1, utils::u256_to_h256(U256::from(3)));
 
         Ok(())
     }
@@ -305,7 +381,7 @@ mod tests {
         let token: H160 = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse()?;
         let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let slot = utils::u256_to_h256(U256::from(9));
-        let lang = Language::Solidity;
+        let lang = EvmLanguage::Solidity;
 
         let update_ratio = slot_update_to_bal_ratio(
             &provider, 
@@ -315,6 +391,7 @@ mod tests {
             holder,
             lang, 
         ).await?;
+        
         assert_eq!(update_ratio, 1.0);
 
         Ok(())
@@ -334,7 +411,7 @@ mod tests {
             &provider, 
             token,
             contract, 
-            utils::u256_to_h256(slot), 
+            slot, 
             holder,
             lang,
         ).await?;
@@ -357,7 +434,7 @@ mod tests {
             &provider, 
             token,
             contract, 
-            utils::u256_to_h256(slot), 
+            slot, 
             holder, 
             lang,
         ).await?;
@@ -381,7 +458,7 @@ mod tests {
             &provider, 
             token,
             contract, 
-            utils::u256_to_h256(slot), 
+            slot, 
             holder,
             lang, 
         ).await?;
@@ -406,7 +483,7 @@ mod tests {
                 &provider, 
                 token,
                 contract, 
-                utils::u256_to_h256(slot), 
+                slot, 
                 holder,
                 lang, 
             ).await {

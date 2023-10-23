@@ -13,19 +13,33 @@ pub struct Cli {
 pub enum Commands {
     // todo: specify holder address
     #[command(about = "Find storage slot for a token")]
-    FindStorageSlot(FindStorageSlot),
+    FindStorageSlot(FindStorageSlotArgs),
+    SetBalance(SetBalanceArgs)
 
 }
 
 #[derive(Args, Debug)]
-pub struct FindStorageSlot {
+pub struct FindStorageSlotArgs {
     #[arg(required = true, help = "Comma seperated token addresses.")]
     pub tokens: String,
-    #[arg(long, help = "Set provider endpoint. Default: http://localhost:8545.")]
+    #[arg(long, help = "Set provider endpoint. Default is http://localhost:8545.")]
     pub rpc_url: Option<String>,
     #[arg(long, help = "Set fork provider endpoint. Default: None.")]
     pub fork_rpc_url: Option<String>,
     #[arg(long, help = "Cache file. If not specified, use default cache file.")]
     pub cache: Option<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct SetBalanceArgs {
+    #[arg(required = true, help = "Address of the token to set balance for.")]
+    pub token: String, 
+    #[arg(required = true, help = "Address of the holder to set balance for.")]
+    pub holder: String,
+    #[arg(required = true, help = "Target balance in decimal representation.")]
+    pub target_balance: f64,
+    #[arg(long, help = "RPC url to forked HH/Anvil instance. Default is http://localhost:8545")]
+    pub rpc_url: Option<String>
+    // todo: manual cache path
 }
 

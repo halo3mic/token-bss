@@ -12,11 +12,23 @@ pub async fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Commands::FindStorageSlot(cmd) => {
-            find_storage_slots(parse_tokens_str(cmd.tokens), cmd.rpc_url, cmd.fork_rpc_url, cmd.cache).await
+            find_storage_slots(
+                parse_tokens_str(cmd.tokens), 
+                cmd.rpc_url, 
+                cmd.fork_rpc_url, 
+                cmd.cache
+            ).await
         },
+        Commands::SetBalance(cmd) => {
+            set_balance(
+                parse_token_str(&cmd.token)?, 
+                parse_token_str(&cmd.holder)?, 
+                cmd.target_balance, 
+                cmd.rpc_url
+            ).await
+        }
     }
 }
-
 
 async fn find_storage_slots(
     tokens: Vec<H160>,
@@ -58,11 +70,11 @@ async fn find_storage_slots(
     let mut str_out = String::new();
     for (token, tkn_strg_bal_info) in results {
         match tkn_strg_bal_info {
-            Ok((contract, slot, update_ratio)) => {
-                str_out.push_str(&format!("{token:?},{contract:?},{slot:?},{update_ratio},\n"));
+            Ok((contract, slot, update_ratio, lang)) => {
+                str_out.push_str(&format!("{token:?},{contract:?},{slot:?},{update_ratio},{lang},\n"));
             },
             Err(e) => {
-                str_out.push_str(&format!("{token:?},,,,Error: {e:?}\n"));
+                str_out.push_str(&format!("{token:?},,,,,Error: {e:?}\n"));
             },
         }
     }
@@ -76,10 +88,34 @@ async fn find_storage_slots(
     Ok(())
 }
 
+async fn set_balance(
+    token: H160, 
+    holder: H160, 
+    target_balance: f64,
+    rpc_url: Option<String> 
+) -> Result<()> {
+    // todo: load slot info from cache
+    let rpc_url = rpc_url.unwrap_or(DEFAULT_RPC_URL.to_string());
+    println!("Setting balance for token {token:?} and holder {holder:?} to {target_balance}");
+    let resulting_bal = erc20_topup::set_balance(
+        rpc_url, 
+        token, 
+        holder, 
+        target_balance, 
+        None
+    ).await?;
+    println!("New balance: {}", resulting_bal);
+    Ok(())
+}
 
 fn parse_tokens_str(tokens_str: String) -> Vec<H160> {
     tokens_str
         .split(",")
-        .filter_map(|s| s.trim().parse::<H160>().ok())
+        .filter_map(|s| parse_token_str(s).ok())
         .collect()
+}
+
+fn parse_token_str(token_str: &str) -> Result<H160> {
+    let token = token_str.trim().parse::<H160>()?;
+    Ok(token)
 }
