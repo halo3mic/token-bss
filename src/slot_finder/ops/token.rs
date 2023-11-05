@@ -24,7 +24,7 @@ pub async fn fetch_balanceof(
 ) -> Result<H256> {
     let call_request = balanceof_call_req(holder, token)?;
     let mut tx = TypedTransaction::Legacy(call_request);
-    tx.set_gas(100_000); // ! Necessary to set gas otherwise changing the wrong storage could incur a lot of processing eg. 0xf25c91c87e0b1fd9b4064af0f427157aab0193a7(Ethereum)
+    tx.set_gas(200_000); // ! Necessary to set gas otherwise changing the wrong storage could incur a lot of processing eg. 0xf25c91c87e0b1fd9b4064af0f427157aab0193a7(Ethereum)
     let balance = provider.call(&tx, None).await?;
     let balance = c::bytes_to_h256(balance);
     Ok(balance)
