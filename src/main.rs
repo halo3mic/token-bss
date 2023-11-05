@@ -36,7 +36,7 @@ async fn find_storage_slots(
     fork_rpc_url: Option<String>,
     cache: Option<String>,
 ) -> Result<()> {
-
+    // ? handle cache in lib.rs?
     // todo: load cache and check if results are already there
 
     // ! Anvil should not be dropped until all handlers are finished using it
@@ -47,6 +47,7 @@ async fn find_storage_slots(
         (rpc_url.unwrap_or(DEFAULT_RPC_URL.to_string()), None)
     };
 
+    // todo: create a stream and a loading bar
     let mut handlers = Vec::new();
     for token in tokens {
         let rpc_url = rpc_url.clone();
@@ -56,7 +57,6 @@ async fn find_storage_slots(
         });
         handlers.push(handler);
     }
-    // todo: split handlers in chunks (handler_count / threads) + loading bar
     let results = futures::future::join_all(handlers).await
         .into_iter()
         .map(|e| {
@@ -94,9 +94,9 @@ async fn set_balance(
     target_balance: f64,
     rpc_url: Option<String> 
 ) -> Result<()> {
-    // todo: load slot info from cache
-    let rpc_url = rpc_url.unwrap_or(DEFAULT_RPC_URL.to_string());
+    // todo: load/write cache
     println!("Setting balance for token {token:?} and holder {holder:?} to {target_balance}");
+    let rpc_url = rpc_url.unwrap_or(DEFAULT_RPC_URL.to_string());
     let resulting_bal = erc20_topup::set_balance(
         rpc_url, 
         token, 

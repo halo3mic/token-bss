@@ -11,7 +11,6 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    // todo: specify holder address
     #[command(about = "Find storage slot for a token")]
     FindStorageSlot(FindStorageSlotArgs),
     SetBalance(SetBalanceArgs)
@@ -28,6 +27,7 @@ pub struct FindStorageSlotArgs {
     pub fork_rpc_url: Option<String>,
     #[arg(long, help = "Cache file. If not specified, use default cache file.")]
     pub cache: Option<String>,
+    // todo: specify holder address
 }
 
 #[derive(Args, Debug)]

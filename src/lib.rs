@@ -2,6 +2,7 @@ pub mod slot_finder;
 pub mod config;
 pub mod utils;
 
+pub use utils::conversion;
 use eyre::Result;
 use ethers::{
     providers::{Http, Provider},
