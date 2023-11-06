@@ -43,7 +43,7 @@ impl TraceParser {
     }
 
     fn parse_sload(&mut self, log: StructLog, depth: usize) -> Result<()> {
-        if  log.memory.as_ref().map(|m|m.len() < 2).unwrap_or(true) || 
+        if log.memory.as_ref().map(|m| m.len() < 2).unwrap_or(true) || 
             log.stack.as_ref().is_none() || 
             log.storage.as_ref().is_none() 
         {
@@ -83,7 +83,7 @@ impl TraceParser {
     }
 
     fn parse_call(&mut self, log: StructLog, depth: usize) -> Result<()> {
-        let stack = log.stack.unwrap();
+        let stack = log.stack.expect("CALL op should have stack content");
         let address = c::u256_to_h160(stack[stack.len()-2]);
         self.depth_to_address.insert(depth + 1, address);
         Ok(())
