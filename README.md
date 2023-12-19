@@ -8,15 +8,27 @@ This is a Rust-based command-line tool that helps to discover storage slots and 
 - **Balance Updating**: Directly update the balance of an ERC20 token on a forked network.
 - **Token List Storage Slot Discovery**: Find storage slots for specified token-list source.
 
+#### Supported tokens
+It supports the majority of ERC20 tokens accross Vyper and Solidity. Even proxies and cases for which storage contract where balances are stored is different than the token itself. Note that for some contracts balance is not solely determined by the storage slot, so in those cases setting the storage slot to a specific value may not be exectly reflected in the balance - it could be slightly higher or lower.
+
+
 ## Installation
 
-Clone the repository and run the setup script.
+### Prerequisites
+* [Rust](https://www.rust-lang.org/tools/install)
+* [Anvil](https://book.getfoundry.sh/getting-started/installation) (For now it only works with version `nightly-ca67d15f4abd46394b324c50e21e66f306a1162d`)
+
+
+**Clone the repository and run the setup script.**
 
 ```bash
-git clone https://github.com/halo3mic/erc20-topup && . ./erc20-topup/scripts/setup.sh
+$ git clone https://github.com/halo3mic/erc20-topup
+$ cd erc20-topup
+$ source ./scripts/setup.sh
 ```
+
 ## Usage
-### Finding a Storage Slot
+### Finding a Storage Slot 🔎
 
 
 To find the storage slot of an ERC20 token, you can specify the RPC URL of an Anvil fork or a live network. Add the ``--unformatted` flag if you prefer the output in CSV format.
@@ -40,7 +52,7 @@ Update ratio: 1
 Language: solidity
 ```
 
-### Updating a Token's Balance
+### Updating a Token's Balance 💸
 Update the balance of an ERC20 token on an Anvil fork with the following command:
 
 ```
@@ -49,7 +61,7 @@ $ erc20-topup set-balance <TOKEN> <HOLDER> <NEW_BALANCE> [OPTIONS]
 __Options__
 * `--rpc-url <RPC_URL>`: Specify the RPC URL of the Anvil fork.
 
-### Output Slots from a Token List
+### Output Slots from a Token List 📄
 Process a list of tokens and output their storage slots using the provided script.
 
 ```
