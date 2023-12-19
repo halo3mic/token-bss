@@ -1,4 +1,3 @@
-/// Check balanceOf slot detection for popular tokens on Ethereum
 use ethers::prelude::*;
 use eyre::Result;
 use serde::Deserialize;
@@ -9,16 +8,10 @@ struct CoingeckoApiResp {
     tokens: Vec<TokenInfo>,
 }
 
-// #[serde(rename_all = "camelCase")]
 #[derive(Deserialize)]
 struct TokenInfo {
-    // chain_id: u64,
     address: H160,
-    // name: String,
     symbol: String,
-    // decimals: u8,
-    // #[serde(rename = "logoURI")]
-    // logo_uri: Option<String>,
 }
 
 async fn coingecko_all_tokens(network_id: String) -> Result<Vec<(String, H160)>> {
@@ -37,7 +30,9 @@ async fn test_popular_tokens_support() -> Result<()> {
     for (symbol, token) in ethereum_tokens {
         println!("Checking {symbol}({token:?})");
         match erc20_topup::find_slot(anvil.endpoint(), token, None).await {
-            Ok((contract, slot, update_ratio, lang)) => println!("{symbol}({token:?}): {contract:?}({lang}) - {slot:?} / ΔR: {update_ratio}"),
+            Ok((contract, slot, update_ratio, lang)) => {
+                println!("{symbol}({token:?}): {contract:?}({lang}) - {slot:?} / ΔR: {update_ratio}")
+            }
             Err(e) => println!("{symbol}({token:?}): {e}"),
         }
     }

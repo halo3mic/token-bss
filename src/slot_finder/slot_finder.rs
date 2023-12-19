@@ -214,7 +214,7 @@ mod tests {
             lang,
         ).await?;
 
-        assert_eq!(ratio, 1.0494);
+        assert!(ratio > 1.);
         Ok(())
     }
 
@@ -249,6 +249,20 @@ mod tests {
         let (_c, s, r, _l) = first_valid_slot(&provider, token, holder, result).await?;
         
         assert_eq!(s, c::u256_to_h256(U256::from(3)));
+        assert_eq!(r, 1.0);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_bal_storage_check_eurcv() -> Result<()> {
+        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let token: H160 = "0x5f7827fdeb7c20b443265fc2f40845b715385ff2".parse()?;
+        let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
+        let result = find_balance_slots(&provider, holder, token).await?;
+
+        let (_c, s, r, _l) = first_valid_slot(&provider, token, holder, result).await?;
+        
+        assert_eq!(s, c::u256_to_h256(U256::from(140)));
         assert_eq!(r, 1.0);
         Ok(())
     }

@@ -74,6 +74,7 @@ pub async fn token_dec_to_fixed(
 }
 
 pub fn env_var(var: &str) -> Result<String> {
+    dotenv::dotenv().ok();
     std::env::var(var).map_err(|_| eyre::eyre!("{} not set", var))
 } 
 
