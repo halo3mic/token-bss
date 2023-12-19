@@ -37,6 +37,8 @@ pub struct SetBalanceArgs {
     #[arg(required = true, help = "Target balance in decimal representation.")]
     pub target_balance: f64,
     #[arg(long, help = "Set Anvil RPC endpoint. Default is http://localhost:8545.")]
-    pub rpc_url: Option<String>
+    pub rpc_url: Option<String>,
+    #[arg(long, help = "True for verbose output. Default: false.", default_value_t = false)]
+    pub verbose: bool,
 }
 

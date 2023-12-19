@@ -26,7 +26,8 @@ pub async fn main() -> Result<()> {
                 parse_token_str(&cmd.token)?, 
                 parse_token_str(&cmd.holder)?, 
                 cmd.target_balance, 
-                cmd.rpc_url
+                cmd.rpc_url, 
+                cmd.verbose,
             ).await
         }
     }
@@ -91,9 +92,12 @@ async fn set_balance(
     token: H160, 
     holder: H160, 
     target_balance: f64,
-    rpc_url: Option<String> 
+    rpc_url: Option<String>,
+    verbose: bool,
 ) -> Result<()> {
-    println!("Setting balance for token {token:?} and holder {holder:?} to {target_balance}");
+    if verbose {
+        println!("Setting balance for token {token:?} and holder {holder:?} to {target_balance}");
+    }
     let rpc_url = rpc_url.unwrap_or(DEFAULT_RPC_URL.to_string());
     let resulting_bal = erc20_topup::set_balance(
         rpc_url, 
@@ -102,7 +106,9 @@ async fn set_balance(
         target_balance, 
         None
     ).await?;
-    println!("New balance: {}", resulting_bal);
+    if verbose {
+        println!("New balance: {}", resulting_bal);
+    }
     Ok(())
 }
 
