@@ -1,5 +1,4 @@
 pub mod slot_finder;
-pub mod config;
 pub mod utils;
 
 pub use utils::conversion;

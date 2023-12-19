@@ -1,17 +1,2 @@
-use eyre::Result;
-
-pub struct Config {
-    pub rpc_endpoint: String,
-}
-
-impl Config {
-
-    pub fn from_env() -> Result<Self> {
-        dotenv::dotenv().ok();
-        let rpc_endpoint = std::env::var("RPC_URL")?;
-        Ok(Self {
-            rpc_endpoint,
-        })
-    }
-
-}
+pub const DEFAULT_RPC_URL: &str = "http://localhost:8545";
+pub const CONCURRENT_TASK_LIMIT: usize = 10;

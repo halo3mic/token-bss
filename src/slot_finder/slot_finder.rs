@@ -108,15 +108,17 @@ async fn slot_update_to_bal_ratio(
 
 #[cfg(test)]
 mod tests {
-    use crate::config::Config;
     use crate::utils;
     use super::*;
+
+    fn rpc_endpoint() -> Result<String> {
+        utils::env_var("RPC_URL")
+    }
 
 
     #[tokio::test]
     async fn test_slot_finding() -> Result<()> {
-        let config = Config::from_env()?;
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&config.rpc_endpoint))?;
+        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
 
         let token: H160 = "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F".parse().unwrap();
         let holder: H160 = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
@@ -131,8 +133,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_usdc() -> Result<()> {
-        let config = Config::from_env()?;
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&config.rpc_endpoint))?;
+        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: H160 = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse()?;
         let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let slot = c::u256_to_h256(U256::from(9));
@@ -153,8 +154,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_sbtc() -> Result<()> {
-        let config = Config::from_env()?;
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&config.rpc_endpoint))?;
+        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: H160 = "0xfE18be6b3Bd88A2D2A7f928d00292E7a9963CfC6".parse()?;
         let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;
@@ -176,8 +176,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_snx() -> Result<()> {
-        let config = Config::from_env()?;
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&config.rpc_endpoint))?;
+        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: H160 = "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F".parse()?;
         let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;
@@ -199,8 +198,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_stlink() -> Result<()> {
-        let config = Config::from_env()?;
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&config.rpc_endpoint))?;
+        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: H160 = "0xb8b295df2cd735b15BE5Eb419517Aa626fc43cD5".parse()?;
         let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;
@@ -222,8 +220,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_crv() -> Result<()> {
-        let config = Config::from_env()?;
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&config.rpc_endpoint))?;
+        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: H160 = "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490".parse()?;
         let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
 
@@ -244,8 +241,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_basic() -> Result<()> {
-        let config = Config::from_env()?;
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&config.rpc_endpoint))?;
+        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: H160 = "0xf25c91c87e0b1fd9b4064af0f427157aab0193a7".parse()?;
         let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;

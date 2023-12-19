@@ -73,6 +73,10 @@ pub async fn token_dec_to_fixed(
     dec_to_fixed(amount, dec)
 }
 
+pub fn env_var(var: &str) -> Result<String> {
+    std::env::var(var).map_err(|_| eyre::eyre!("{} not set", var))
+} 
+
 fn dec_to_fixed(amount: f64, dec: u8) -> Result<U256> {
     let fixed = ethers::utils::parse_units(
         &amount.to_string(), 
@@ -109,7 +113,6 @@ async fn eth_call(
     let res = provider.call(&TypedTransaction::Legacy(call_req), None).await?;
     Ok(res)
 }
-
 
 #[cfg(test)]
 mod tests {

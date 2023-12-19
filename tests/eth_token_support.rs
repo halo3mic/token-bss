@@ -31,8 +31,8 @@ async fn coingecko_all_tokens(network_id: String) -> Result<Vec<(String, H160)>>
 #[tokio::test]
 async fn test_popular_tokens_support() -> Result<()> {
     let ethereum_tokens = coingecko_all_tokens("ethereum".to_string()).await?;
-    let config = erc20_topup::config::Config::from_env()?;
-    let anvil = erc20_topup::utils::spawn_anvil(Some(&config.rpc_endpoint));
+    let rpc_endpoint = erc20_topup::utils::env_var("RPC_URL")?;
+    let anvil = erc20_topup::utils::spawn_anvil(Some(&rpc_endpoint));
     
     for (symbol, token) in ethereum_tokens {
         println!("Checking {symbol}({token:?})");

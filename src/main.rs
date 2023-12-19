@@ -1,14 +1,13 @@
+mod config;
 mod cmd;
 
+use config::{ DEFAULT_RPC_URL, CONCURRENT_TASK_LIMIT };
 use futures::stream::{self, StreamExt};
 use ethers::types::{H160, H256}; // ? Belongs here?
 use cmd::{Cli, Commands};
 use clap::Parser;
 use eyre::Result;
 
-
-const DEFAULT_RPC_URL: &str = "http://localhost:8545";
-const CONCURRENT_TASK_LIMIT: usize = 10;
 
 #[tokio::main]
 pub async fn main() -> Result<()> {
@@ -50,6 +49,7 @@ async fn find_storage_slots(
                     println!("Slot: {slot:?}");
                     println!("Update ratio: {update_ratio}");
                     println!("Language: {lang}");
+                    println!();
                 }
             },
             Err(e) => {
