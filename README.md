@@ -1,5 +1,7 @@
 # ERC20-topup 🚰
 
+![image](./assets/intro.gif)
+
 This is a Rust-based command-line tool that helps to discover storage slots and contracts for ERC20 tokens. It traces the `balanceOf` function call on the token contract to find the the contract and slot where balance mapping is located.
 
 ## Features
