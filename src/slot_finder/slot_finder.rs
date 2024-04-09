@@ -1,4 +1,4 @@
-// ! Works up to Foundry release `nightly-ca67d15f4abd46394b324c50e21e66f306a1162d`
+use futures::future::{join_all, FutureExt};
 use ethers::prelude::*;
 use eyre::Result;
 use super::{ 
@@ -17,7 +17,7 @@ pub async fn find_balance_slots_and_update_ratio(
     token: H160,
 ) -> Result<SlotOutput> {
     let slots = find_balance_slots(provider, holder, token).await?;
-    first_valid_slot(provider, token, holder, slots).await
+    closest_slot(provider, token, holder, slots).await
 }
 
 // ? if desired balance is already obtained skip the part below
@@ -47,29 +47,30 @@ pub async fn find_balance_slots(
     Ok(matches)
 }
 
-async fn first_valid_slot(
+async fn closest_slot(
     provider: &Provider<Http>,
     token: H160,
     holder: H160,
     slots: Vec<(H160, H256, EvmLanguage)>
-) -> Result<SlotOutput> {
-    for (contract, slot, lang) in slots {
-        if let Ok(update_ratio) = 
-            slot_update_to_bal_ratio(
-                &provider, 
-                token, 
-                contract, 
-                slot, 
-                holder, 
-                lang
-            ).await 
-        {
-            return Ok((contract, slot, update_ratio, lang.to_string()));
+) -> Result<SlotOutput, eyre::Error> {
+    // Sequential execution necessary as there is only one anvil instance
+    let d_one = |x: f64| (x - 1.0).abs();
+    let mut closest_slot: Option<SlotOutput> = None;
+    
+    for (contract, slot, lang) in slots.into_iter() {
+        let update_ratio_res = slot_update_to_bal_ratio(provider, token, contract, slot, holder, lang).await;
+        
+        if let Ok(ur) = update_ratio_res {
+            match &closest_slot {
+                Some((_, _, cr, _)) if d_one(*cr) < d_one(ur) => continue,
+                _ => {
+                    closest_slot = Some((contract, slot, ur, lang.to_string()));
+                }
+            }
         }
     }
-    return Err(eyre::eyre!("No valid slots found"));
+    closest_slot.ok_or_else(|| eyre::eyre!("No valid slots found"))
 }
-
 
 /// Check change in storage val is reflected in return value of balanceOf 
 async fn slot_update_to_bal_ratio(
@@ -246,7 +247,7 @@ mod tests {
         let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;
 
-        let (_c, s, r, _l) = first_valid_slot(&provider, token, holder, result).await?;
+        let (_c, s, r, _l) = closest_slot(&provider, token, holder, result).await?;
         
         assert_eq!(s, c::u256_to_h256(U256::from(3)));
         assert_eq!(r, 1.0);
@@ -260,9 +261,23 @@ mod tests {
         let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;
 
-        let (_c, s, r, _l) = first_valid_slot(&provider, token, holder, result).await?;
+        let (_c, s, r, _l) = closest_slot(&provider, token, holder, result).await?;
         
         assert_eq!(s, c::u256_to_h256(U256::from(140)));
+        assert_eq!(r, 1.0);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_bal_storage_check_yv1inch() -> Result<()> {
+        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let token: H160 = "0xB8C3B7A2A618C552C23B1E4701109a9E756Bab67".parse()?;
+        let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
+        let result = find_balance_slots(&provider, holder, token).await?;
+        println!("{:?}", result);
+        let (_c, s, r, _l) = closest_slot(&provider, token, holder, result).await?;
+        
+        assert_eq!(s, c::u256_to_h256(U256::from(3)));
         assert_eq!(r, 1.0);
         Ok(())
     }

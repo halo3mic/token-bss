@@ -18,7 +18,7 @@ It supports the majority of ERC20 tokens accross Vyper and Solidity. Even proxie
 
 ### Prerequisites
 * [Rust](https://www.rust-lang.org/tools/install)
-* [Anvil](https://book.getfoundry.sh/getting-started/installation) (For now it only works with version `nightly-ca67d15f4abd46394b324c50e21e66f306a1162d`)
+* [Anvil](https://book.getfoundry.sh/getting-started/installation)
 
 
 **Clone the repository and run the setup script.**
