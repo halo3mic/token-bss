@@ -16,7 +16,7 @@ pub mod conversion {
         if bytes.len() == 0 {
             H256::zero()
         } else {
-            H256::from_slice(&bytes)
+            H256::from_slice(&bytes[..32])
         }
     }
     

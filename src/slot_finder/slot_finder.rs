@@ -268,5 +268,19 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn test_bal_storage_check_yv1inch() -> Result<()> {
+        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let token: H160 = "0xB8C3B7A2A618C552C23B1E4701109a9E756Bab67".parse()?;
+        let holder: H160 = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
+        let result = find_balance_slots(&provider, holder, token).await?;
+        println!("{:?}", result);
+        let (_c, s, r, _l) = closest_slot(&provider, token, holder, result).await?;
+        
+        assert_eq!(s, c::u256_to_h256(U256::from(3)));
+        assert_eq!(r, 1.0);
+        Ok(())
+    }
+
 }
 
