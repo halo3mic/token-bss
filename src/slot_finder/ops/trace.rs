@@ -44,9 +44,9 @@ pub async fn default_trace_call(
             serde_json::json!(call_options)
         ]
     ).await?;
-    let parsedResponse = serde_json::from_value::<GethTrace>(response)?;
+    let parsed_response = serde_json::from_value::<GethTrace>(response)?;
 
-    match parsedResponse {
+    match parsed_response {
         GethTrace::Known(GethTraceFrame::Default(trace)) => {
             if trace.failed {
                 Err(eyre::eyre!("traceCall failed"))

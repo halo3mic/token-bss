@@ -1,4 +1,3 @@
-use futures::future::{join_all, FutureExt};
 use ethers::prelude::*;
 use eyre::Result;
 use super::{ 
