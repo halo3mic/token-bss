@@ -34,7 +34,7 @@ impl TraceParser {
         let depth = log.depth as usize;
         match log.op.as_str() {
             "SLOAD" => self.parse_sload(log, depth)?,
-            "SHA3" => self.parse_sha3(log)?,
+            "KECCAK256" => self.parse_sha3(log)?,
             "STATICCALL" | "CALL" => self.parse_call(log, depth)?,
             "DELEGATECALL" => self.parse_delegatecall(depth)?,
             _ => (),
@@ -43,23 +43,22 @@ impl TraceParser {
     }
 
     fn parse_sload(&mut self, log: StructLog, depth: usize) -> Result<()> {
-        if log.memory.as_ref().map(|m| m.len() < 2).unwrap_or(true) || 
-            log.stack.as_ref().is_none() || 
-            log.storage.as_ref().is_none() 
-        {
+        if log.memory.as_ref().map(|m| m.len() < 2).unwrap_or(true) || log.stack.as_ref().is_none() {
             return Ok(());
         }
-        for slot_idx in log.storage.as_ref().unwrap().keys() {
-            if let Some((hashed_val_0, hashed_val_1)) = self.hashed_vals.get(slot_idx) {
-                let (slot, lang) = match &H256::from(self.holder) {
-                    v if *v == *hashed_val_0 => (*hashed_val_1, EvmLanguage::Solidity),
-                    v if *v == *hashed_val_1 => (*hashed_val_0, EvmLanguage::Vyper),
-                    _ => return Ok(()),
-                };
-                let contract = self.depth_to_address.get(&depth).unwrap();
-                self.results.insert((*contract, slot, lang));
-            }
+        // Find the last value on the stack - this is the slot of the requested storage
+        let stack = log.stack.as_ref().unwrap();
+        let slot_idx = c::u256_to_h256(stack[stack.len()-1]);
+        if let Some((hashed_val_0, hashed_val_1)) = self.hashed_vals.get(&slot_idx) {
+            let (slot, lang) = match &H256::from(self.holder) {
+                v if *v == *hashed_val_0 => (*hashed_val_1, EvmLanguage::Solidity),
+                v if *v == *hashed_val_1 => (*hashed_val_0, EvmLanguage::Vyper),
+                _ => return Ok(()),
+            };
+            let contract = self.depth_to_address.get(&depth).unwrap();
+            self.results.insert((*contract, slot, lang));
         }
+
         Ok(())
     }
 
