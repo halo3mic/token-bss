@@ -1,5 +1,4 @@
-use ethers::abi::{Tokenizable, Token};
-use ethers::prelude::*;
+use alloy::primitives::{self, B256, Address, FixedBytes};
 use eyre::Result;
 
 
@@ -11,24 +10,25 @@ pub enum EvmLanguage {
 
 impl EvmLanguage {
 
-    pub fn mapping_loc(&self, slot: H256, holder: H160) -> H256 {
+    pub fn mapping_loc(&self, slot: B256, holder: Address) -> B256 {
+        let holder: B256 = holder.into_word(); 
          match &self {
-            EvmLanguage::Solidity => Self::solidity_mapping_loc(&slot, &H256::from(holder)),
-            EvmLanguage::Vyper => Self::vyper_mapping_loc(&slot, &H256::from(holder)),
+            EvmLanguage::Solidity => Self::solidity_mapping_loc(&slot, &holder),
+            EvmLanguage::Vyper => Self::vyper_mapping_loc(&slot, &holder),
         }
     }
 
-   pub fn solidity_mapping_loc(storage_index: &H256, key: &H256) -> H256 {
-        Self::mapping_loc_from_tokens(key.into_token(), storage_index.into_token())
+    pub fn solidity_mapping_loc(storage_index: &FixedBytes<32>, key: &FixedBytes<32>) -> B256 {
+        Self::mapping_loc_from_tokens(key, storage_index)
     }
     
-    pub fn vyper_mapping_loc(storage_index: &H256, key: &H256) -> H256 {
-        Self::mapping_loc_from_tokens(storage_index.into_token(), key.into_token())
+    pub fn vyper_mapping_loc(storage_index: &FixedBytes<32>, key: &FixedBytes<32>) -> B256 {
+        Self::mapping_loc_from_tokens(storage_index, key)
     }
 
-    fn mapping_loc_from_tokens(token_0: Token, token_1: Token) -> H256 {
-        let hash_input = ethers::abi::encode(&[ token_0, token_1 ]);
-        ethers::utils::keccak256(hash_input).into()
+    fn mapping_loc_from_tokens(token_0: &FixedBytes<32>, token_1: &FixedBytes<32>) -> B256 {
+        let hashable = vec![token_0.0.to_vec(), token_1.0.to_vec()].concat();
+        primitives::utils::keccak256(&hashable).into()
     }
 
     pub fn to_string(&self) -> String {

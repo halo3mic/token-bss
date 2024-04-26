@@ -1,21 +1,23 @@
 pub mod slot_finder;
 pub mod utils;
 
-pub use utils::conversion;
 use eyre::Result;
-use ethers::{
-    providers::{Http, Provider},
-    types::{H160, U256, H256},
+use alloy::{
+    primitives::{Address, B256, U256}, 
+    providers::RootProvider,
+    transports::http::Http,
 };
+use reqwest::Client;
+// todo: RootProvider<Http<Client>> could go into common or smth
 
 
 pub async fn find_slot(
-    provider_url: String, 
-    token: H160, 
-    holder: Option<H160>
-) -> Result<(H160, H256, f64, String)> {
-    let provider = Provider::<Http>::try_from(&provider_url)?;
-    let holder = holder.unwrap_or(H160::from_low_u64_be(1));
+    provider_url: &str, 
+    token: Address, 
+    holder: Option<Address>
+) -> Result<(Address, B256, f64, String)> {
+    let provider = http_provider_from_url(provider_url);
+    let holder = holder.unwrap_or(Address::from_word(B256::from(U256::from(0))));
     let (contract, slot, update_ratio, lang) = 
         slot_finder::find_balance_slots_and_update_ratio(
             &provider, 
@@ -26,15 +28,16 @@ pub async fn find_slot(
     Ok((contract, slot, update_ratio, lang))
 }
 
+// todo: after using eth_call with overrides it doesn't make sens to have this here -> move to utils
 // ? use update_ratio to set a target balance (if fee is 2% take it into account)
 pub async fn set_balance(
-    provider_url: String, 
-    token: H160, 
-    holder: H160,
+    provider_url: &str, 
+    token: Address, 
+    holder: Address,
     target_balance: f64, 
-    slot_info: Option<(H160, H256, f64, String)>
+    slot_info: Option<(Address, B256, f64, String)>
 ) -> Result<U256> {
-    let provider = Provider::<Http>::try_from(&provider_url)?;
+    let provider = http_provider_from_url(provider_url);
     let (contract, slot, _update_ratio, lang) = match slot_info {
         Some(slot_info) => slot_info,
         None => {
@@ -57,4 +60,9 @@ pub async fn set_balance(
     ).await?;
 
     Ok(resulting_balance)
+}
+
+
+fn http_provider_from_url(url: &str) -> RootProvider<Http<Client>> {
+    RootProvider::<Http<Client>>::new_http(url.parse().unwrap())
 }
