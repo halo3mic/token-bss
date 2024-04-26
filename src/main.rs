@@ -3,7 +3,7 @@ mod cmd;
 
 use config::{ DEFAULT_RPC_URL, CONCURRENT_TASK_LIMIT };
 use futures::stream::{self, StreamExt};
-use ethers::types::{H160, H256}; // ? Belongs here?
+use alloy::primitives::{Address, B256};
 use cmd::{Cli, Commands};
 use clap::Parser;
 use eyre::Result;
@@ -34,12 +34,12 @@ pub async fn main() -> Result<()> {
 }
 
 async fn find_storage_slots(
-    tokens: Vec<H160>,
+    tokens: Vec<Address>,
     rpc_url: Option<String>,
     fork_rpc_url: Option<String>,
     unformatted_output: bool,
 ) -> Result<()> {
-    fn handle_output(token: H160, res: Result<(H160, H256, f64, String)>, unformatted_output: bool) {
+    fn handle_output(token: Address, res: Result<(Address, B256, f64, String)>, unformatted_output: bool) {
         match res {
             Ok((contract, slot, update_ratio, lang)) => {
                 if unformatted_output {
@@ -71,10 +71,12 @@ async fn find_storage_slots(
         (rpc_url.unwrap_or(DEFAULT_RPC_URL.to_string()), None)
     };
 
+    // todo: this can get messy as two threads are modifying storage of the same fork instance
+    // todo: use tokio instead to manage tasks better  
     let tasks = stream::iter(tokens).map(|token| {
         let rpc_url = rpc_url.clone();
         async move {
-            let res = erc20_topup::find_slot(rpc_url, token, None).await;
+            let res = erc20_topup::find_slot(&rpc_url, token, None).await;
             (token, res)
         }
     });
@@ -89,8 +91,8 @@ async fn find_storage_slots(
 }
 
 async fn set_balance(
-    token: H160, 
-    holder: H160, 
+    token: Address, 
+    holder: Address, 
     target_balance: f64,
     rpc_url: Option<String>,
     verbose: bool,
@@ -100,7 +102,7 @@ async fn set_balance(
     }
     let rpc_url = rpc_url.unwrap_or(DEFAULT_RPC_URL.to_string());
     let resulting_bal = erc20_topup::set_balance(
-        rpc_url, 
+        &rpc_url, 
         token, 
         holder, 
         target_balance, 
@@ -112,14 +114,14 @@ async fn set_balance(
     Ok(())
 }
 
-fn parse_tokens_str(tokens_str: String) -> Vec<H160> {
+fn parse_tokens_str(tokens_str: String) -> Vec<Address> {
     tokens_str
         .split(",")
         .filter_map(|s| parse_token_str(s).ok())
         .collect()
 }
 
-fn parse_token_str(token_str: &str) -> Result<H160> {
-    let token = token_str.trim().parse::<H160>()?;
+fn parse_token_str(token_str: &str) -> Result<Address> {
+    let token = token_str.trim().parse::<Address>()?;
     Ok(token)
 }

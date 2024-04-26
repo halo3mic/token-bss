@@ -1,21 +1,20 @@
-use std::collections::{ HashMap, HashSet };
-use ethers::types::{StructLog, H256, H160};
-use eyre::Result;
+use alloy::rpc::types::trace::geth::StructLog;
+use std::collections::{HashMap, HashSet};
 use super::lang::EvmLanguage;
-use crate::conversion as c;
+use crate::common::*;
 
 
 #[derive(Default)]
 pub struct TraceParser {
-    depth_to_address: HashMap<usize, H160>,
-    hashed_vals: HashMap<H256, (H256, H256)>,
-    results: HashSet<(H160, H256, EvmLanguage)>,
-    holder: H160,
+    depth_to_address: HashMap<usize, Address>,
+    hashed_vals: HashMap<B256, (B256, B256)>,
+    results: HashSet<(Address, B256, EvmLanguage)>,
+    holder: Address,
 }
 
 impl TraceParser {
 
-    pub fn parse(struct_logs: Vec<StructLog>, token: H160, holder: H160) -> Result<Vec<(H160, H256, EvmLanguage)>> {
+    pub fn parse(struct_logs: Vec<StructLog>, token: Address, holder: Address) -> Result<Vec<(Address, B256, EvmLanguage)>> {
         let mut parser = TraceParser::default();
         parser.holder = holder;
         parser.depth_to_address.insert(1, token);
@@ -48,9 +47,9 @@ impl TraceParser {
         }
         // Find the last value on the stack - this is the slot of the requested storage
         let stack = log.stack.as_ref().unwrap();
-        let slot_idx = c::u256_to_h256(stack[stack.len()-1]);
+        let slot_idx: B256 = stack[stack.len()-1].into();
         if let Some((hashed_val_0, hashed_val_1)) = self.hashed_vals.get(&slot_idx) {
-            let (slot, lang) = match &H256::from(self.holder) {
+            let (slot, lang) = match &self.holder.into_word() {
                 v if *v == *hashed_val_0 => (*hashed_val_1, EvmLanguage::Solidity),
                 v if *v == *hashed_val_1 => (*hashed_val_0, EvmLanguage::Vyper),
                 _ => return Ok(()),
@@ -69,21 +68,21 @@ impl TraceParser {
         )?;
         let stack = log.stack.as_ref()
             .expect("SHA3 op should have stack content");
-        let mem_offset = stack[stack.len()-1].as_usize();
-        let mem_length = stack[stack.len()-2].as_usize();
+        let mem_offset = stack[stack.len()-1].to::<usize>();
+        let mem_length = stack[stack.len()-2].to::<usize>();
         if mem_length == 64 { // Only concerned about storage mappings
             let hashed_val = memory[mem_offset..mem_offset+mem_length].to_vec();
-            let hash = H256(ethers::utils::keccak256(&hashed_val));
-            let hashed_val_0: [u8; 32] = hashed_val[0..32].to_vec().try_into().unwrap();
-            let hashed_val_1: [u8; 32] = hashed_val[32..64].to_vec().try_into().unwrap();
-            self.hashed_vals.insert(hash, (H256(hashed_val_0), H256(hashed_val_1)));
+            let hash = alloy_utils::keccak256(&hashed_val);
+            let hashed_val_0 = B256::from_slice(&hashed_val[0..32]);
+            let hashed_val_1 = B256::from_slice(&hashed_val[32..64]);
+            self.hashed_vals.insert(hash, (hashed_val_0, hashed_val_1));
         }
         Ok(())
     }
 
     fn parse_call(&mut self, log: StructLog, depth: usize) -> Result<()> {
         let stack = log.stack.expect("CALL op should have stack content");
-        let address = c::u256_to_h160(stack[stack.len()-2]);
+        let address = stack[stack.len()-2].to::<U160>().into();
         self.depth_to_address.insert(depth + 1, address);
         Ok(())
     }
