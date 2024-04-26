@@ -1,12 +1,11 @@
 use ethers::prelude::*;
-use eyre::Result;
-use alloy::rpc::types::trace::geth::{
-    GethDebugTracingCallOptions,
-    GethDefaultTracingOptions,
+use ethers::types::{
+    GethDebugTracingCallOptions, 
     GethDebugTracingOptions,
-    GethDebugTracerConfig,
+    GethTraceFrame, 
+    GethTrace, 
 };
-use ethers::types::{GethTrace, GethTraceFrame, DefaultFrame};
+use eyre::Result;
 
 
 pub async fn default_trace_call(
@@ -14,20 +13,13 @@ pub async fn default_trace_call(
     call_request: TransactionRequest, 
     block: Option<BlockId>
 ) -> Result<DefaultFrame> {
-    let config = GethDefaultTracingOptions {
+    let tracing_options = GethDebugTracingOptions {
         disable_storage: Some(false),
         disable_stack: Some(false),
-        disable_memory: Some(false),
-        disable_return_data: Some(false),
         enable_memory: Some(true),
         enable_return_data: Some(true),
-        debug: None,
-        limit: None,
-    };
-    let tracing_options = GethDebugTracingOptions {
-        tracer_config: GethDebugTracerConfig::default(),
-        config: config,
         tracer: None,
+        tracer_config: None,
         timeout: None,
     };
     let call_options = GethDebugTracingCallOptions {
@@ -35,18 +27,13 @@ pub async fn default_trace_call(
         state_overrides: None,
         block_overrides: None,
     };
-    // ! Anvil supports alloy's tracer API, ethers-rs's is different
-    let response = provider.request(
-        "debug_traceCall", 
-        vec![
-            serde_json::json!(call_request), 
-            serde_json::json!(block),
-            serde_json::json!(call_options)
-        ]
+    let response = provider.debug_trace_call(
+        call_request, 
+        block, 
+        call_options
     ).await?;
-    let parsed_response = serde_json::from_value::<GethTrace>(response)?;
 
-    match parsed_response {
+    match response {
         GethTrace::Known(GethTraceFrame::Default(trace)) => {
             if trace.failed {
                 Err(eyre::eyre!("traceCall failed"))
