@@ -15,22 +15,21 @@ pub async fn anvil_update_storage<T: Clone + Transport>(
     })
 }
 
-pub async fn get_storage_val(
-    provider: &RootProviderHttp, 
-    contract: Address,
-    key: U256,
-) -> Result<U256> {
-    let val = provider.get_storage_at(
-    contract, key, BlockId::latest()
-    ).await?;
-    Ok(val)
-}
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::utils;
+
+    pub async fn get_storage_val(
+        provider: &RootProviderHttp, 
+        contract: Address,
+        key: U256,
+    ) -> Result<U256> {
+        let val = provider.get_storage_at(
+        contract, key, BlockId::latest()
+        ).await?;
+        Ok(val)
+    }
 
     #[tokio::test]
     async fn test_update_slot_val() -> Result<()> {

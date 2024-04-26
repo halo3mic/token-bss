@@ -24,3 +24,11 @@ pub fn rand_num<T>() -> T
     rand::random::<T>()
 }
 
+pub fn bytes_to_u256(val: Bytes) -> U256 {
+    let bytes = val.to_vec();
+    if bytes.len() == 0 {
+        U256::ZERO
+    } else {
+        B256::from_slice(&bytes[..32]).into()
+    }
+}

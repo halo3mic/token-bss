@@ -1,10 +1,12 @@
-use crate::common::*;
+use std::collections::HashMap;
+use alloy::rpc::types::eth::state::{StateOverride, AccountOverride};
 use super::{
     ops::{ storage, token, trace }, 
     trace_parser::TraceParser, 
     lang::EvmLanguage, 
     utils,
 };
+use crate::common::*;
 
 
 type SlotOutput = (Address, B256, f64, String);
@@ -70,8 +72,6 @@ async fn closest_slot(
     closest_slot.ok_or_else(|| eyre::eyre!("No valid slots found"))
 }
 
-// todo: instead of changing the storage just do eth_call with overrides
-/// Check change in storage val is reflected in return value of balanceOf 
 async fn slot_update_to_bal_ratio(
     provider: &RootProviderHttp, 
     token: Address,
@@ -80,29 +80,27 @@ async fn slot_update_to_bal_ratio(
     holder: Address,
     lang: EvmLanguage,
 ) -> Result<f64> {
+    let new_slot_val = U256::from(utils::rand_num::<u128>());
+    let call_request = token::balanceof_call_req(holder, token)?;
     let map_loc = lang.mapping_loc(slot, holder);
-    let old_val = storage::get_storage_val(provider, storage_contract, map_loc.into()).await?;
-    let new_slot_val: u128 = utils::rand_num();
-    token::update_balance(&provider.client(), storage_contract, map_loc.into(), U256::from(new_slot_val)).await?;
-
-    let res = if let Ok(new_bal) = token::fetch_balanceof(&provider, token, holder).await {
-        if new_bal == B256::from(old_val) {
-            return Err(eyre::eyre!("BalanceOf reflects old storage"));
-        }
-        let update_ratio = 
-            utils::ratio_f64(
-                new_bal.into(), 
-                U256::from(new_slot_val),
-                None
-            );
-        Ok(update_ratio)
-    } else {
-        Err(eyre::eyre!("BalanceOf failed"))  
+    
+    let state_diff: HashMap<_, _> = [(map_loc, new_slot_val)].into_iter().collect();
+    let account_override = AccountOverride {
+        state_diff: Some(state_diff),
+        ..AccountOverride::default()
     };
-    // Change the storage value back to the original
-    storage::anvil_update_storage(&provider.client(), storage_contract, map_loc.into(), old_val).await?;
+    let state_override: HashMap<_, _> = [(storage_contract, account_override)].into_iter().collect();
 
-    res
+    let new_bal = provider.call_with_overrides(&call_request, BlockId::latest(), state_override).await?;
+    let new_bal = utils::bytes_to_u256(new_bal);
+    let old_bal = token::fetch_balanceof(&provider, token, holder).await?;
+
+    if new_bal == old_bal {
+        return Err(eyre::eyre!("BalanceOf reflects old storage"));
+    }
+    let update_ratio = utils::ratio_f64(new_bal, new_slot_val, None);
+    
+    Ok(update_ratio)
 }
 
 

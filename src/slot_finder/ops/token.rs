@@ -1,5 +1,6 @@
 use crate::common::*;
 use super::storage;
+use super::super::utils;
 
 
 const BALANCEOF_4BYTE: &str = "0x70a08231";
@@ -20,11 +21,11 @@ pub async fn fetch_balanceof(
     provider: &RootProviderHttp,
     token: Address, 
     holder: Address
-) -> Result<B256> {
+) -> Result<U256> {
     let mut call_request = balanceof_call_req(holder, token)?;
     call_request.set_gas_limit(CALL_GAS_LIMIT); // ! Necessary to set gas otherwise changing the wrong storage could incur a lot of processing eg. 0xf25c91c87e0b1fd9b4064af0f427157aab0193a7(Ethereum)
     let balance = provider.call(&call_request, BlockId::latest()).await?;
-    let balance = bytes_to_b256(balance);
+    let balance = utils::bytes_to_u256(balance);
     Ok(balance)
 }
 
@@ -41,13 +42,4 @@ fn balanceof_input_data(holder: Address) -> Result<Bytes> {
     let data_str = format!("{BALANCEOF_4BYTE}000000000000000000000000{holder}");
     let data = Bytes::from_hex(data_str)?;
     Ok(data)
-}
-
-pub fn bytes_to_b256(val: Bytes) -> B256 {
-    let bytes = val.to_vec();
-    if bytes.len() == 0 {
-        B256::ZERO
-    } else {
-        B256::from_slice(&bytes[..32])
-    }
 }
