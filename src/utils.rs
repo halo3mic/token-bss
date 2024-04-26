@@ -1,17 +1,5 @@
-use alloy::{
-    primitives::{self, Address, Bytes, U256}, 
-    network::{Ethereum, TransactionBuilder}, 
-    node_bindings::{Anvil, AnvilInstance}, 
-    providers::{
-        Provider, 
-        RootProvider
-    }, 
-    rpc::types::eth::{BlockId, TransactionRequest}, 
-    transports::http::Http,
-};
-use const_hex::FromHex;
-use eyre::Result;
-use reqwest::Client;
+use crate::common::*;
+use alloy::node_bindings::{Anvil, AnvilInstance};
 
 // todo: does this really need to be here?
 
@@ -22,15 +10,15 @@ pub fn spawn_anvil(fork_url: Option<&str>) -> AnvilInstance {
     }).spawn()
 }
 
-pub fn spawn_anvil_provider(fork_url: Option<&str>) -> Result<(RootProvider<Http<Client>>, AnvilInstance)> {
+pub fn spawn_anvil_provider(fork_url: Option<&str>) -> Result<(RootProviderHttp, AnvilInstance)> {
     let anvil_fork = spawn_anvil(fork_url);
-    let provider = RootProvider::<_>::new_http(anvil_fork.endpoint().parse()?);
+    let provider = RootProviderHttp::new_http(anvil_fork.endpoint().parse()?);
 
     Ok((provider, anvil_fork))
 }
 
 pub async fn token_dec_to_fixed(
-    provider: &impl Provider<Http<Client>, Ethereum>,
+    provider: &RootProviderHttp,
     token: Address,
     amount: f64,
 ) -> Result<U256> {
@@ -44,14 +32,14 @@ pub fn env_var(var: &str) -> Result<String> {
 } 
 
 fn dec_to_fixed(amount: f64, dec: u8) -> Result<U256> {
-    Ok(primitives::utils::parse_units(
+    Ok(alloy_utils::parse_units(
         &amount.to_string(), 
         dec
     )?.into())
 }
 
 async fn token_decimals(
-    provider: &impl Provider<Http<Client>, Ethereum>,
+    provider: &RootProviderHttp,
     token: Address,
 ) -> Result<u8> {
     let dec = eth_call(
@@ -74,7 +62,7 @@ fn bytes_to_u8(val: Bytes) -> u8 {
 
 // todo: not needed as helper
 async fn eth_call(
-    provider: &impl Provider<Http<Client>, Ethereum>, 
+    provider: &RootProviderHttp, 
     to: Address, 
     data: Bytes, 
     gas: Option<u128>
@@ -93,18 +81,15 @@ async fn eth_call(
 mod tests {
     use super::*;
     use std::str::FromStr;
-    use alloy::primitives;
-    use alloy::providers::RootProvider;
-
 
     #[tokio::test]
     async fn test_token_dec_to_fixed() -> Result<()> {
         let provider_url = "https://arb1.arbitrum.io/rpc";
         let dec_amount = 23.434;
         let token = Address::from_str("0x912CE59144191C1204E64559FE8253a0e49E6548")?;
-        let expected = primitives::utils::parse_ether(&dec_amount.to_string())?.into();
+        let expected = alloy_utils::parse_ether(&dec_amount.to_string())?.into();
 
-        let provider = RootProvider::new_http(provider_url.parse()?);
+        let provider = RootProviderHttp::new_http(provider_url.parse()?);
         let fix_amount = token_dec_to_fixed(&provider, token, dec_amount).await?;
 
         assert_eq!(fix_amount, expected);

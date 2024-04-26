@@ -1,5 +1,4 @@
-use alloy::primitives::{self, B256, Address, FixedBytes};
-use eyre::Result;
+use crate::common::*;
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -28,7 +27,7 @@ impl EvmLanguage {
 
     fn mapping_loc_from_tokens(token_0: &FixedBytes<32>, token_1: &FixedBytes<32>) -> B256 {
         let hashable = vec![token_0.0.to_vec(), token_1.0.to_vec()].concat();
-        primitives::utils::keccak256(&hashable).into()
+        alloy_utils::keccak256(&hashable).into()
     }
 
     pub fn to_string(&self) -> String {

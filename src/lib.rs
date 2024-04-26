@@ -1,14 +1,8 @@
 pub mod slot_finder;
 pub mod utils;
+pub(crate) mod common;
 
-use eyre::Result;
-use alloy::{
-    primitives::{Address, B256, U256}, 
-    providers::RootProvider,
-    transports::http::Http,
-};
-use reqwest::Client;
-// todo: RootProvider<Http<Client>> could go into common or smth
+use common::*;
 
 
 pub async fn find_slot(
@@ -63,6 +57,6 @@ pub async fn set_balance(
 }
 
 
-fn http_provider_from_url(url: &str) -> RootProvider<Http<Client>> {
-    RootProvider::<Http<Client>>::new_http(url.parse().unwrap())
+fn http_provider_from_url(url: &str) -> RootProviderHttp {
+    RootProviderHttp::new_http(url.parse().unwrap())
 }

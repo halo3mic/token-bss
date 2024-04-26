@@ -1,17 +1,4 @@
-use alloy::{
-    primitives::{Address, B256, U256, Bytes}, 
-    providers::{Provider, RootProvider},
-    transports::{http::Http, Transport},
-    network::TransactionBuilder, 
-    rpc::{
-        types::eth::{TransactionRequest, BlockId},
-        client::ClientRef, 
-    },
-};
-use const_hex::FromHex;
-use reqwest::Client;
-use eyre::Result;
-
+use crate::common::*;
 use super::storage;
 
 
@@ -30,7 +17,7 @@ pub async fn update_balance<T: Clone + Transport>(
 }
 
 pub async fn fetch_balanceof(
-    provider: &RootProvider<Http<Client>>,
+    provider: &RootProviderHttp,
     token: Address, 
     holder: Address
 ) -> Result<B256> {

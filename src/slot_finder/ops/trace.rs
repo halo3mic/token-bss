@@ -1,17 +1,18 @@
+use crate::common::*;
 use alloy::{
-    providers::{debug::DebugApi, RootProvider}, rpc::types::{
-        eth::{BlockNumberOrTag, TransactionRequest}, 
-        trace::geth::{
-            DefaultFrame, GethDebugTracerConfig, GethDebugTracingOptions, GethDefaultTracingOptions, GethTrace
-        },
-    }, transports::http::Http
+    providers::debug::DebugApi,
+    rpc::types::trace::geth::{
+        GethDefaultTracingOptions, 
+        GethDebugTracingOptions, 
+        GethDebugTracerConfig, 
+        DefaultFrame, 
+        GethTrace,
+    },
 };
-use reqwest::Client;
-use eyre::Result;
 
 
 pub async fn default_trace_call(
-    provider: &RootProvider<Http<Client>>,
+    provider: &RootProviderHttp,
     call_request: TransactionRequest, 
     block: Option<BlockNumberOrTag>
 ) -> Result<DefaultFrame> {
@@ -31,8 +32,7 @@ pub async fn default_trace_call(
         tracer: None,
         timeout: None,
     };
-    // BlockNumberOrTag
-    // BlockId
+
     let block = block.unwrap_or(BlockNumberOrTag::Latest);
     let response = provider.debug_trace_call(
         call_request, 
@@ -40,16 +40,13 @@ pub async fn default_trace_call(
         tracing_options,
     ).await?;
 
-    match response {
-        GethTrace::Default(trace) => {
-            if trace.failed {
-                Err(eyre::eyre!("traceCall failed"))
-            } else {
-                Ok(trace)
-            }
-        },
-        _ => {
-            Err(eyre::eyre!("Only default traces supported"))
+    if let GethTrace::Default(trace) = response {
+        if trace.failed {
+            Err(eyre::eyre!("traceCall failed"))
+        } else {
+            Ok(trace)
         }
+    } else {
+        Err(eyre::eyre!("Only default traces supported"))
     }
 }

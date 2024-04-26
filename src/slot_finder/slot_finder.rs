@@ -1,14 +1,8 @@
-use alloy::{
-    providers::{Provider, RootProvider},
-    primitives::{Address, B256, U256}, 
-    transports::http::Http,
-};
-use reqwest::Client;
-use eyre::Result;
+use crate::common::*;
 use super::{
-    lang::EvmLanguage, 
     ops::{ storage, token, trace }, 
     trace_parser::TraceParser, 
+    lang::EvmLanguage, 
     utils,
 };
 
@@ -16,7 +10,7 @@ use super::{
 type SlotOutput = (Address, B256, f64, String);
 
 pub async fn find_balance_slots_and_update_ratio(
-    provider: &RootProvider<Http<Client>>,
+    provider: &RootProviderHttp,
     holder: Address, 
     token: Address,
 ) -> Result<SlotOutput> {
@@ -26,7 +20,7 @@ pub async fn find_balance_slots_and_update_ratio(
 
 // ? if desired balance is already obtained skip the part below
 pub async fn update_balance(
-    provider: &RootProvider<Http<Client>>, 
+    provider: &RootProviderHttp, 
     token: Address,
     holder: Address,
     new_bal: U256,
@@ -41,7 +35,7 @@ pub async fn update_balance(
 }
 
 pub async fn find_balance_slots(
-    provider: &RootProvider<Http<Client>>,
+    provider: &RootProviderHttp,
     holder: Address, 
     token: Address,
 ) -> Result<Vec<(Address, B256, EvmLanguage)>> {
@@ -52,7 +46,7 @@ pub async fn find_balance_slots(
 }
 
 async fn closest_slot(
-    provider: &RootProvider<Http<Client>>,
+    provider: &RootProviderHttp,
     token: Address,
     holder: Address,
     slots: Vec<(Address, B256, EvmLanguage)>
@@ -79,7 +73,7 @@ async fn closest_slot(
 // todo: instead of changing the storage just do eth_call with overrides
 /// Check change in storage val is reflected in return value of balanceOf 
 async fn slot_update_to_bal_ratio(
-    provider: &RootProvider<Http<Client>>, 
+    provider: &RootProviderHttp, 
     token: Address,
     storage_contract: Address,
     slot: B256,

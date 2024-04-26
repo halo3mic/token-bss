@@ -1,12 +1,4 @@
-use alloy::{
-    primitives::{Address, U256},
-    rpc::types::eth::BlockId,
-    rpc::client::ClientRef,
-    transports::Transport,
-    providers::Provider,
-    network::Ethereum,
-};
-use eyre::Result;
+use crate::common::*;
 
 
 pub async fn anvil_update_storage<T: Clone + Transport>(
@@ -15,23 +7,22 @@ pub async fn anvil_update_storage<T: Clone + Transport>(
     slot: U256,
     value: U256
 ) -> Result<()> {
-    let res: bool = client.request(
+    client.request(
         "anvil_setStorageAt", 
         (contract, slot, value)
-    ).await?;
-    if res {
-        Ok(())
-    } else {
-        Err(eyre::eyre!("Storage update failed"))
-    }
+    ).await.map_err(|e| { 
+        eyre::eyre!(format!("Storage update failed: {e:?}"))
+    })
 }
 
-pub async fn get_storage_val<T: Clone + Transport>(
-    provider: &impl Provider<T, Ethereum>, 
+pub async fn get_storage_val(
+    provider: &RootProviderHttp, 
     contract: Address,
     key: U256,
 ) -> Result<U256> {
-    let val = provider.get_storage_at(contract, key, BlockId::latest()).await?;
+    let val = provider.get_storage_at(
+    contract, key, BlockId::latest()
+    ).await?;
     Ok(val)
 }
 

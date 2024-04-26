@@ -1,10 +1,7 @@
-use std::collections::{ HashMap, HashSet };
-use alloy::{
-    rpc::types::trace::geth::StructLog,
-    primitives::{self, Address, B256, U160},
-};
-use eyre::Result;
+use alloy::rpc::types::trace::geth::StructLog;
+use std::collections::{HashMap, HashSet};
 use super::lang::EvmLanguage;
+use crate::common::*;
 
 
 #[derive(Default)]
@@ -75,7 +72,7 @@ impl TraceParser {
         let mem_length = stack[stack.len()-2].to::<usize>();
         if mem_length == 64 { // Only concerned about storage mappings
             let hashed_val = memory[mem_offset..mem_offset+mem_length].to_vec();
-            let hash = primitives::utils::keccak256(&hashed_val);
+            let hash = alloy_utils::keccak256(&hashed_val);
             let hashed_val_0 = B256::from_slice(&hashed_val[0..32]);
             let hashed_val_1 = B256::from_slice(&hashed_val[32..64]);
             self.hashed_vals.insert(hash, (hashed_val_0, hashed_val_1));
