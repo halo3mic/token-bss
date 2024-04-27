@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-use alloy::rpc::types::eth::state::{StateOverride, AccountOverride};
+use futures::future::join_all;
 use super::{
-    ops::{ storage, token, trace }, 
     trace_parser::TraceParser, 
+    ops::{token, trace}, 
     lang::EvmLanguage, 
     utils,
 };
@@ -20,25 +19,9 @@ pub async fn find_balance_slots_and_update_ratio(
     closest_slot(provider, token, holder, slots).await
 }
 
-// ? if desired balance is already obtained skip the part below
-pub async fn update_balance(
-    provider: &RootProviderHttp, 
-    token: Address,
-    holder: Address,
-    new_bal: U256,
-    storage_contract: Address,
-    slot: B256,
-    lang_str: String,
-) -> Result<U256> {
-    let map_loc = EvmLanguage::from_str(&lang_str)?.mapping_loc(slot, holder);
-    token::update_balance(&provider.client(), storage_contract, map_loc.into(), new_bal).await?;
-    let reflected_bal = token::fetch_balanceof(&provider, token, holder).await?;
-    Ok(reflected_bal.into())
-}
-
 pub async fn find_balance_slots(
     provider: &RootProviderHttp,
-    holder: Address, 
+    holder: Address,
     token: Address,
 ) -> Result<Vec<(Address, B256, EvmLanguage)>> {
     let tx_request = token::balanceof_call_req(holder, token)?;
@@ -47,31 +30,30 @@ pub async fn find_balance_slots(
     Ok(matches)
 }
 
+// Note this would choose 0 over 2
 async fn closest_slot(
     provider: &RootProviderHttp,
     token: Address,
     holder: Address,
     slots: Vec<(Address, B256, EvmLanguage)>
 ) -> Result<SlotOutput, eyre::Error> {
-    // Sequential execution necessary as there is only one anvil instance
-    let d_one = |x: f64| (x - 1.0).abs();
-    let mut closest_slot: Option<SlotOutput> = None;
-    
-    for (contract, slot, lang) in slots.into_iter() {
-        let update_ratio_res = slot_update_to_bal_ratio(provider, token, contract, slot, holder, lang).await;
-        
-        if let Ok(ur) = update_ratio_res {
-            match &closest_slot {
-                Some((_, _, cr, _)) if d_one(*cr) < d_one(ur) => continue,
-                _ => {
-                    closest_slot = Some((contract, slot, ur, lang.to_string()));
-                }
-            }
-        }
-    }
-    closest_slot.ok_or_else(|| eyre::eyre!("No valid slots found"))
+    let d_one = |x: f64| ((x - 1.0).abs() * 100.) as u8;
+    let future_results = join_all(slots.into_iter()
+        .map(|(c, s, la)| async move {
+            slot_update_to_bal_ratio(provider, token, c,s, holder, la)
+                .await
+                .map(|ur| (c, s, ur, la.to_string()))
+        })
+    );
+    future_results.await
+        .into_iter()
+        .filter_map(|x| x.ok())
+        .min_by_key(|x| d_one(x.2))
+        .ok_or_else(|| eyre::eyre!("No valid slots found"))
 }
 
+// todo: too many params
+// todo: more suiting name
 async fn slot_update_to_bal_ratio(
     provider: &RootProviderHttp, 
     token: Address,
@@ -80,25 +62,24 @@ async fn slot_update_to_bal_ratio(
     holder: Address,
     lang: EvmLanguage,
 ) -> Result<f64> {
-    let new_slot_val = U256::from(utils::rand_num::<u128>());
-    let call_request = token::balanceof_call_req(holder, token)?;
+    let new_slot_val = U256::from(utils::rand_num::<u128>()); // todo: In scenario where this is excatly the same as the current balance it fails
     let map_loc = lang.mapping_loc(slot, holder);
-    
-    let state_diff: HashMap<_, _> = [(map_loc, new_slot_val)].into_iter().collect();
-    let account_override = AccountOverride {
-        state_diff: Some(state_diff),
-        ..AccountOverride::default()
-    };
-    let state_override: HashMap<_, _> = [(storage_contract, account_override)].into_iter().collect();
+    let call_request = token::balanceof_call_req(holder, token)?;
 
-    let new_bal = provider.call_with_overrides(&call_request, BlockId::latest(), state_override).await?;
-    let new_bal = utils::bytes_to_u256(new_bal);
-    let old_bal = token::fetch_balanceof(&provider, token, holder).await?;
+    let override_bal_future = token::call_balanceof_with_storage_overrides(
+        provider,
+        &call_request,
+        storage_contract,
+        map_loc,
+        new_slot_val,
+    );
+    let real_bal_future = token::call_balanceof(provider, &call_request);
+    let (override_bal, real_bal) = tokio::try_join!(override_bal_future, real_bal_future)?;
 
-    if new_bal == old_bal {
-        return Err(eyre::eyre!("BalanceOf reflects old storage"));
+    if override_bal == real_bal {
+        return Err(eyre::eyre!("Balance not updated"));
     }
-    let update_ratio = utils::ratio_f64(new_bal, new_slot_val, None);
+    let update_ratio = utils::ratio_f64(override_bal, new_slot_val, None);
     
     Ok(update_ratio)
 }
@@ -112,7 +93,6 @@ mod tests {
     fn rpc_endpoint() -> Result<String> {
         utils::env_var("RPC_URL")
     }
-
 
     #[tokio::test]
     async fn test_slot_finding() -> Result<()> {
@@ -271,7 +251,6 @@ mod tests {
         let token: Address = "0xB8C3B7A2A618C552C23B1E4701109a9E756Bab67".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;
-        println!("{:?}", result);
         let (_c, s, r, _l) = closest_slot(&provider, token, holder, result).await?;
         
         assert_eq!(s, B256::from(U256::from(3)));

@@ -22,13 +22,15 @@ pub async fn main() -> Result<()> {
             ).await
         },
         Commands::SetBalance(cmd) => {
-            set_balance(
-                parse_token_str(&cmd.token)?, 
-                parse_token_str(&cmd.holder)?, 
-                cmd.target_balance, 
-                cmd.rpc_url, 
-                cmd.verbose,
-            ).await
+            // todo: implement set balance
+            unimplemented!("Set balance command is not implemented yet");
+            // set_balance(
+            //     parse_token_str(&cmd.token)?, 
+            //     parse_token_str(&cmd.holder)?, 
+            //     cmd.target_balance, 
+            //     cmd.rpc_url, 
+            //     cmd.verbose,
+            // ).await
         }
     }
 }
@@ -39,6 +41,7 @@ async fn find_storage_slots(
     fork_rpc_url: Option<String>,
     unformatted_output: bool,
 ) -> Result<()> {
+    // todo: seperate function
     fn handle_output(token: Address, res: Result<(Address, B256, f64, String)>, unformatted_output: bool) {
         match res {
             Ok((contract, slot, update_ratio, lang)) => {
@@ -63,7 +66,7 @@ async fn find_storage_slots(
             },
         }
     }
-
+    // todo: spawning anvil is a helper not a part of the main logic
     let (rpc_url, _anvil) = if let Some(fork_rpc_url) = fork_rpc_url {
         let anvil = erc20_topup::utils::spawn_anvil(Some(&fork_rpc_url));
         (anvil.endpoint(), Some(anvil))
@@ -71,8 +74,8 @@ async fn find_storage_slots(
         (rpc_url.unwrap_or(DEFAULT_RPC_URL.to_string()), None)
     };
 
-    // todo: this can get messy as two threads are modifying storage of the same fork instance
-    // todo: use tokio instead to manage tasks better  
+    // todo: better to use tokio?
+    // todo: consider rate limiting by the api
     let tasks = stream::iter(tokens).map(|token| {
         let rpc_url = rpc_url.clone();
         async move {
@@ -90,29 +93,29 @@ async fn find_storage_slots(
     Ok(())
 }
 
-async fn set_balance(
-    token: Address, 
-    holder: Address, 
-    target_balance: f64,
-    rpc_url: Option<String>,
-    verbose: bool,
-) -> Result<()> {
-    if verbose {
-        println!("Setting balance for token {token:?} and holder {holder:?} to {target_balance}");
-    }
-    let rpc_url = rpc_url.unwrap_or(DEFAULT_RPC_URL.to_string());
-    let resulting_bal = erc20_topup::set_balance(
-        &rpc_url, 
-        token, 
-        holder, 
-        target_balance, 
-        None
-    ).await?;
-    if verbose {
-        println!("New balance: {}", resulting_bal);
-    }
-    Ok(())
-}
+// async fn set_balance(
+//     token: Address, 
+//     holder: Address, 
+//     target_balance: f64,
+//     rpc_url: Option<String>,
+//     verbose: bool,
+// ) -> Result<()> {
+//     if verbose {
+//         println!("Setting balance for token {token:?} and holder {holder:?} to {target_balance}");
+//     }
+//     let rpc_url = rpc_url.unwrap_or(DEFAULT_RPC_URL.to_string());
+//     let resulting_bal = erc20_topup::set_balance(
+//         &rpc_url, 
+//         token, 
+//         holder, 
+//         target_balance, 
+//         None
+//     ).await?;
+//     if verbose {
+//         println!("New balance: {}", resulting_bal);
+//     }
+//     Ok(())
+// }
 
 fn parse_tokens_str(tokens_str: String) -> Vec<Address> {
     tokens_str

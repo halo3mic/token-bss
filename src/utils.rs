@@ -77,6 +77,71 @@ async fn eth_call(
 }
 
 
+// // todo: after using eth_call with overrides it doesn't make sens to have this here -> move to utils
+// // ? use update_ratio to set a target balance (if fee is 2% take it into account)
+// pub async fn set_balance(
+//     provider_url: &str, 
+//     token: Address, 
+//     holder: Address,
+//     target_balance: f64, 
+//     slot_info: Option<(Address, B256, f64, String)>
+// ) -> Result<U256> {
+//     let provider = http_provider_from_url(provider_url);
+//     let (contract, slot, _update_ratio, lang) = match slot_info {
+//         Some(slot_info) => slot_info,
+//         None => {
+//             slot_finder::find_balance_slots_and_update_ratio(
+//                 &provider, 
+//                 holder, 
+//                 token
+//             ).await?
+//         }
+//     };
+//     let target_bal_fixed = utils::token_dec_to_fixed(&provider, token, target_balance).await?;
+//     let resulting_balance = slot_finder::update_balance(
+//         &provider, 
+//         token, 
+//         holder,
+//         target_bal_fixed,
+//         contract, 
+//         slot, 
+//         lang,
+//     ).await?;
+
+//     Ok(resulting_balance)
+// }
+
+
+// // // ? if desired balance is already obtained skip the part below
+// pub async fn update_balance(
+//     provider: &RootProviderHttp, 
+//     token: Address,
+//     holder: Address,
+//     new_bal: U256,
+//     storage_contract: Address,
+//     slot: B256,
+//     lang_str: String,
+// ) -> Result<U256> {
+//     let map_loc = EvmLanguage::from_str(&lang_str)?.mapping_loc(slot, holder);
+//     update_balance(&provider.client(), storage_contract, map_loc.into(), new_bal).await?;
+//     let reflected_bal = token::fetch_balanceof(&provider, token, holder).await?;
+//     Ok(reflected_bal.into())
+// }
+
+// pub async fn anvil_update_storage<T: Clone + Transport>(
+//     client: &ClientRef<'_, T>, 
+//     contract: Address,
+//     slot: U256,
+//     value: U256
+// ) -> Result<()> {
+//     client.request(
+//         "anvil_setStorageAt", // todo: what if hardhat is used?
+//         (contract, slot, value)
+//     ).await.map_err(|e| { 
+//         eyre::eyre!(format!("Storage update failed: {e:?}"))
+//     })
+// }
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -4,7 +4,7 @@ use alloy::{
     rpc::types::trace::geth::{
         GethDefaultTracingOptions, 
         GethDebugTracingOptions, 
-        GethDebugTracerConfig, 
+        GethDebugTracerConfig,
         DefaultFrame, 
         GethTrace,
     },

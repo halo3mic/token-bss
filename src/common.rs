@@ -10,12 +10,8 @@ pub use alloy::{
         Address, B256, U512, U256, U160, U128, Bytes, FixedBytes,
         utils as alloy_utils,
     },
-    rpc::{
-        types::eth::{TransactionRequest, BlockId, BlockNumberOrTag},
-        client::ClientRef,
-    },
+    rpc::types::eth::{TransactionRequest, BlockId, BlockNumberOrTag},
     network::TransactionBuilder,
-    transports::Transport,
     providers::Provider,
 };
 

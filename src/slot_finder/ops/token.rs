@@ -1,36 +1,50 @@
-use crate::common::*;
-use super::storage;
+// ! Necessary to set gas for calls otherwise changing the wrong storage could 
+// ! cause time-out eg. 0xf25c91c87e0b1fd9b4064af0f427157aab0193a7(Ethereum)
+
+use alloy::rpc::types::eth::state::AccountOverride;
+use std::collections::HashMap;
 use super::super::utils;
+use crate::common::*;
 
 
 const BALANCEOF_4BYTE: &str = "0x70a08231";
 const CALL_GAS_LIMIT: u128 = 200_000;
 
-// todo: so many helpers really needed?
-pub async fn update_balance<T: Clone + Transport>(
-    client: &ClientRef<'_, T>, 
-    storage_contract: Address,
-    map_loc: U256,
-    new_bal: U256,
-) -> Result<()> {
-    storage::anvil_update_storage(client, storage_contract, map_loc, new_bal).await?;
-    Ok(())
-}
-
-pub async fn fetch_balanceof(
+pub async fn call_balanceof(
     provider: &RootProviderHttp,
-    token: Address, 
-    holder: Address
+    call_request: &TransactionRequest,
 ) -> Result<U256> {
-    let mut call_request = balanceof_call_req(holder, token)?;
-    call_request.set_gas_limit(CALL_GAS_LIMIT); // ! Necessary to set gas otherwise changing the wrong storage could incur a lot of processing eg. 0xf25c91c87e0b1fd9b4064af0f427157aab0193a7(Ethereum)
-    let balance = provider.call(&call_request, BlockId::latest()).await?;
+    let balance = provider.call(call_request, BlockId::latest()).await?;
     let balance = utils::bytes_to_u256(balance);
     Ok(balance)
 }
 
+pub async fn call_balanceof_with_storage_overrides(
+    provider: &RootProviderHttp,
+    call_request: &TransactionRequest,
+    storage_contract: Address,
+    map_loc: B256,
+    new_slot_val: U256,
+) -> Result<U256> {
+    let state_diff: HashMap<_, _> = [(map_loc, new_slot_val)].into_iter().collect();
+    let account_override = AccountOverride {
+        state_diff: Some(state_diff),
+        ..AccountOverride::default()
+    };
+    let state_override: HashMap<_, _> = 
+        [(storage_contract, account_override)].into_iter().collect();
+
+    let bal = provider.call_with_overrides(
+        call_request, 
+        BlockId::latest(), 
+        state_override
+    ).await?;
+    Ok(utils::bytes_to_u256(bal))
+}
+
 pub fn balanceof_call_req(holder: Address, token: Address) -> Result<TransactionRequest> {
     let call_req = TransactionRequest::default()
+        .with_gas_limit(CALL_GAS_LIMIT)
         .with_from(holder)
         .with_to(token.into())
         .with_input(balanceof_input_data(holder)?);
