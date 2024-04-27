@@ -1,6 +1,6 @@
 pub(crate) mod common;
 pub mod slot_finder;
-pub mod utils;
+pub use slot_finder::util as utils;
 
 use common::*;
 

@@ -44,10 +44,10 @@ pub async fn call_balanceof_with_storage_overrides(
 
 pub fn balanceof_call_req(holder: Address, token: Address) -> Result<TransactionRequest> {
     let call_req = TransactionRequest::default()
+        .with_input(balanceof_input_data(holder)?)
         .with_gas_limit(CALL_GAS_LIMIT)
         .with_from(holder)
-        .with_to(token.into())
-        .with_input(balanceof_input_data(holder)?);
+        .with_to(token.into());
     Ok(call_req)
 }
 

@@ -1,21 +1,7 @@
 use crate::common::*;
-use alloy::node_bindings::{Anvil, AnvilInstance};
 
 // todo: does this really need to be here?
 
-pub fn spawn_anvil(fork_url: Option<&str>) -> AnvilInstance {
-    (match fork_url {
-        Some(url) => Anvil::new().fork(url),
-        None => Anvil::new(),
-    }).spawn()
-}
-
-pub fn spawn_anvil_provider(fork_url: Option<&str>) -> Result<(RootProviderHttp, AnvilInstance)> {
-    let anvil_fork = spawn_anvil(fork_url);
-    let provider = RootProviderHttp::new_http(anvil_fork.endpoint().parse()?);
-
-    Ok((provider, anvil_fork))
-}
 
 pub async fn token_dec_to_fixed(
     provider: &RootProviderHttp,
@@ -25,11 +11,6 @@ pub async fn token_dec_to_fixed(
     let dec = token_decimals(provider, token).await?;
     dec_to_fixed(amount, dec)
 }
-
-pub fn env_var(var: &str) -> Result<String> {
-    dotenv::dotenv().ok();
-    std::env::var(var).map_err(|_| eyre::eyre!("{} not set", var))
-} 
 
 fn dec_to_fixed(amount: f64, dec: u8) -> Result<U256> {
     Ok(alloy_utils::parse_units(
@@ -42,12 +23,11 @@ async fn token_decimals(
     provider: &RootProviderHttp,
     token: Address,
 ) -> Result<u8> {
-    let dec = eth_call(
-        provider, 
-        token, 
-        Bytes::from_hex("0x313ce567")?, 
-        None
-    ).await.map(bytes_to_u8)?;
+    let tx_req = TransactionRequest::default()
+        .to(token)
+        .with_input(Bytes::from_hex("0x313ce567")?);
+    let dec_bytes = provider.call(&tx_req, BlockId::latest()).await?;
+    let dec = bytes_to_u8(dec_bytes);
     Ok(dec)
 }
 
@@ -59,23 +39,6 @@ fn bytes_to_u8(val: Bytes) -> u8 {
         bytes[bytes.len() - 1]
     }
 }
-
-// todo: not needed as helper
-async fn eth_call(
-    provider: &RootProviderHttp, 
-    to: Address, 
-    data: Bytes, 
-    gas: Option<u128>
-) -> Result<Bytes> {
-    let mut tx_req = TransactionRequest::default()
-        .to(to)
-        .with_input(data);
-    if let Some(gas) = gas {
-        tx_req.set_gas_limit(gas);
-    }
-    Ok(provider.call(&tx_req, BlockId::latest()).await?)
-}
-
 
 // // todo: after using eth_call with overrides it doesn't make sens to have this here -> move to utils
 // // ? use update_ratio to set a target balance (if fee is 2% take it into account)

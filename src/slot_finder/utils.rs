@@ -1,5 +1,5 @@
 use crate::common::*;
-use rand;
+use alloy::node_bindings::{Anvil, AnvilInstance};
 
 const DEFAULT_PRECISION_MUL: u128 = 10_000;
 
@@ -18,12 +18,6 @@ pub fn ratio_f64(val1: U256, val2: U256, precision_mul: Option<u128>) -> f64 {
     update_ratio
 }
 
-pub fn rand_num<T>() -> T 
-    where rand::distributions::Standard: rand::distributions::Distribution<T>
-{
-    rand::random::<T>()
-}
-
 pub fn bytes_to_u256(val: Bytes) -> U256 {
     let bytes = val.to_vec();
     if bytes.len() == 0 {
@@ -31,4 +25,23 @@ pub fn bytes_to_u256(val: Bytes) -> U256 {
     } else {
         B256::from_slice(&bytes[..32]).into()
     }
+}
+
+pub fn spawn_anvil_provider(fork_url: Option<&str>) -> Result<(RootProviderHttp, AnvilInstance)> {
+    let anvil_fork = spawn_anvil(fork_url);
+    let provider = RootProviderHttp::new_http(anvil_fork.endpoint().parse()?);
+
+    Ok((provider, anvil_fork))
+}
+
+pub fn spawn_anvil(fork_url: Option<&str>) -> AnvilInstance {
+    (match fork_url {
+        Some(url) => Anvil::new().fork(url),
+        None => Anvil::new(),
+    }).spawn()
+}
+
+pub fn env_var(var: &str) -> Result<String> {
+    dotenv::dotenv().ok();
+    std::env::var(var).map_err(|_| eyre::eyre!("{} not set", var))
 }

@@ -62,7 +62,7 @@ async fn slot_update_to_bal_ratio(
     holder: Address,
     lang: EvmLanguage,
 ) -> Result<f64> {
-    let new_slot_val = U256::from(utils::rand_num::<u128>()); // todo: In scenario where this is excatly the same as the current balance it fails
+    let new_slot_val = U256::from(rand::random::<u128>()); // todo: In scenario where this is excatly the same as the current balance it fails
     let map_loc = lang.mapping_loc(slot, holder);
     let call_request = token::balanceof_call_req(holder, token)?;
 
@@ -87,11 +87,11 @@ async fn slot_update_to_bal_ratio(
 
 #[cfg(test)]
 mod tests {
-    use crate::utils;
+    use super::super::utils;
     use super::*;
 
     fn rpc_endpoint() -> Result<String> {
-        utils::env_var("RPC_URL")
+        utils::env_var("RPC_URL") // todo: rename this to test-rpc or emphasize that it must be eth based
     }
 
     #[tokio::test]
