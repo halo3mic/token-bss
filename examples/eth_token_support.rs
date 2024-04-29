@@ -21,8 +21,8 @@ async fn coingecko_all_tokens(network_id: String) -> Result<Vec<(String, Address
     api_resp.tokens.into_iter().map(|t| Ok((t.symbol, t.address))).collect()
 }
 
-#[tokio::test]
-async fn test_popular_tokens_support() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let ethereum_tokens = coingecko_all_tokens("ethereum".to_string()).await?;
     let rpc_endpoint = erc20_topup::utils::env_var("RPC_URL")?;
     let anvil = erc20_topup::utils::spawn_anvil(Some(&rpc_endpoint));
