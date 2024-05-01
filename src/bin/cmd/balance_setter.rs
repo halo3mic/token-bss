@@ -2,10 +2,9 @@ use std::str::FromStr;
 use reqwest::Client;
 use alloy::{
     rpc::types::eth::{TransactionRequest, BlockId},
-    transports::{Transport, http::Http},
+    transports::http::Http,
     providers::{Provider, RootProvider},
     network::TransactionBuilder,
-    rpc::client::ClientRef,
     primitives::{
         Address, B256, U256, Bytes,
         utils as alloy_utils,
@@ -36,7 +35,8 @@ pub async fn set_balance(
     let provider = http_provider_from_url(provider_url);
     let target_bal_fixed = token_dec_to_fixed(&provider, token, target_balance).await?;
     let resulting_balance = update_balance(
-        &provider, 
+        &provider,
+        provider_url,
         token, 
         holder,
         target_bal_fixed,
@@ -48,9 +48,9 @@ pub async fn set_balance(
     Ok(resulting_balance)
 }
 
-// todo if desired balance is already obtained skip the part below
 pub async fn update_balance(
-    provider: &RootProviderHttp, 
+    provider: &RootProviderHttp,
+    provider_url: &str,
     token: Address,
     holder: Address,
     new_bal: U256,
@@ -59,23 +59,43 @@ pub async fn update_balance(
     lang_str: String,
 ) -> Result<U256> {
     let map_loc = erc20_topup::EvmLanguage::from_str(&lang_str)?.mapping_loc(slot, holder);
-    anvil_update_storage(&provider.client(), storage_contract, map_loc.into(), new_bal).await?;
+    update_storage(&provider_url, storage_contract, map_loc.into(), new_bal.into()).await?;
     let reflected_bal = call_balanceof(&provider, token, holder).await?;
     Ok(reflected_bal.into())
 }
 
-pub async fn anvil_update_storage<T: Clone + Transport>(
-    client: &ClientRef<'_, T>, 
+pub async fn update_storage(
+    provider_url: &str, 
     contract: Address,
     slot: U256,
-    value: U256
+    value: B256
 ) -> Result<()> {
-    client.request(
-        "anvil_setStorageAt", // todo: what if hardhat is used?
-        (contract, slot, value)
-    ).await.map_err(|e| { 
-        eyre::eyre!(format!("Storage update failed: {e:?}"))
-    })
+    // todo: update this once alloy's client supports setStorageAt return
+    // client.request(
+    //     "hardhat_setStorageAt", // Anvil has hardhat prefix as alias
+    //     (contract, slot, value)
+    // ).await.map_err(|e| { 
+    //     eyre::eyre!(format!("Storage update failed: {e:?}"))
+    // })
+    let rpc_request = r#"{
+        "jsonrpc": "2.0",
+        "method": "hardhat_setStorageAt",
+        "params": [
+            ""#.to_owned() + &format!("{contract:}") + r#"",
+            ""# + &format!("{slot:}") + r#"",
+            ""# + &format!("{value:}") + r#""
+        ],
+        "id": 1
+    }"#;
+    let response = reqwest::Client::new()
+        .post(provider_url)
+        .body(rpc_request)
+        .header("Content-Type", "application/json")
+        .send()
+        .await?;
+    let response = response.json::<jsonrpc::Response>().await?;
+    response.check_error()
+        .map_err(|e| eyre::eyre!(format!("Storage update failed: {e:?}")))
 }
 
 fn http_provider_from_url(url: &str) -> RootProviderHttp {
