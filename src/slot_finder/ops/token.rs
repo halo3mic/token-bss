@@ -2,7 +2,7 @@
 // ! cause time-out eg. 0xf25c91c87e0b1fd9b4064af0f427157aab0193a7(Ethereum)
 
 use alloy::rpc::types::eth::state::AccountOverride;
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 use super::super::utils;
 use crate::common::*;
 
@@ -54,6 +54,6 @@ pub fn balanceof_call_req(holder: Address, token: Address) -> Result<Transaction
 fn balanceof_input_data(holder: Address) -> Result<Bytes> {
     let holder = format!("{:?}", holder)[2..].to_string();
     let data_str = format!("{BALANCEOF_4BYTE}000000000000000000000000{holder}");
-    let data = Bytes::from_hex(data_str)?;
+    let data = Bytes::from_str(&data_str)?;
     Ok(data)
 }

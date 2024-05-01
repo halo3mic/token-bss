@@ -1,5 +1,5 @@
 use crate::common::*;
-use alloy::node_bindings::{Anvil, AnvilInstance};
+
 
 const DEFAULT_PRECISION_MUL: u128 = 10_000;
 
@@ -25,23 +25,4 @@ pub fn bytes_to_u256(val: Bytes) -> U256 {
     } else {
         B256::from_slice(&bytes[..32]).into()
     }
-}
-
-pub fn spawn_anvil_provider(fork_url: Option<&str>) -> Result<(RootProviderHttp, AnvilInstance)> {
-    let anvil_fork = spawn_anvil(fork_url);
-    let provider = RootProviderHttp::new_http(anvil_fork.endpoint().parse()?);
-
-    Ok((provider, anvil_fork))
-}
-
-pub fn spawn_anvil(fork_url: Option<&str>) -> AnvilInstance {
-    (match fork_url {
-        Some(url) => Anvil::new().fork(url),
-        None => Anvil::new(),
-    }).spawn()
-}
-
-pub fn env_var(var: &str) -> Result<String> {
-    dotenv::dotenv().ok();
-    std::env::var(var).map_err(|_| eyre::eyre!("{} not set", var))
 }

@@ -87,16 +87,36 @@ async fn slot_update_to_bal_ratio(
 
 #[cfg(test)]
 mod tests {
-    use super::super::utils;
+    use alloy::node_bindings::{Anvil, AnvilInstance};
     use super::*;
 
+    pub fn spawn_anvil_provider(fork_url: Option<&str>) -> Result<(RootProviderHttp, AnvilInstance)> {
+        let anvil_fork = spawn_anvil(fork_url);
+        let provider = RootProviderHttp::new_http(anvil_fork.endpoint().parse()?);
+    
+        Ok((provider, anvil_fork))
+    }
+    
+    pub fn spawn_anvil(fork_url: Option<&str>) -> AnvilInstance {
+        (match fork_url {
+            Some(url) => Anvil::new().fork(url),
+            None => Anvil::new(),
+        }).spawn()
+    }
+    
+    
+    pub fn env_var(var: &str) -> Result<String> {
+        dotenv::dotenv().ok();
+        std::env::var(var).map_err(|_| eyre::eyre!("{} not set", var))
+    }
+
     fn rpc_endpoint() -> Result<String> {
-        utils::env_var("RPC_URL") // todo: rename this to test-rpc or emphasize that it must be eth based
+        env_var("RPC_URL") // todo: rename this to test-rpc or emphasize that it must be eth based
     }
 
     #[tokio::test]
     async fn test_slot_finding() -> Result<()> {
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
 
         let token: Address = "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F".parse().unwrap();
         let holder: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
@@ -111,7 +131,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_usdc() -> Result<()> {
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let slot = U256::from(9).into();
@@ -132,7 +152,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_sbtc() -> Result<()> {
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0xfE18be6b3Bd88A2D2A7f928d00292E7a9963CfC6".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;
@@ -154,7 +174,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_snx() -> Result<()> {
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;
@@ -176,7 +196,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_stlink() -> Result<()> {
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0xb8b295df2cd735b15BE5Eb419517Aa626fc43cD5".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;
@@ -198,7 +218,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_crv() -> Result<()> {
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
 
@@ -219,7 +239,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eth_basic() -> Result<()> {
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0xf25c91c87e0b1fd9b4064af0f427157aab0193a7".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;
@@ -233,7 +253,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_eurcv() -> Result<()> {
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0x5f7827fdeb7c20b443265fc2f40845b715385ff2".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;
@@ -247,7 +267,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bal_storage_check_yv1inch() -> Result<()> {
-        let (provider, _anvil_instance) = utils::spawn_anvil_provider(Some(&rpc_endpoint()?))?;
+        let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0xB8C3B7A2A618C552C23B1E4701109a9E756Bab67".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
         let result = find_balance_slots(&provider, holder, token).await?;

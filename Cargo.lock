@@ -1087,7 +1087,6 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "clap",
- "const-hex",
  "dotenv",
  "eyre",
  "futures",

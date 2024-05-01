@@ -18,4 +18,3 @@ pub use alloy::{
 pub type RootProviderHttp = RootProvider<Http<Client>>;
 
 pub use eyre::Result;
-pub use const_hex::FromHex;
