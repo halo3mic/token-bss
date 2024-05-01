@@ -1,8 +1,8 @@
 mod common;
 mod slot_finder;
 
+pub use slot_finder::EvmLanguage;
 use common::*;
-
 
 pub async fn find_slot(
     provider_url: &str, 
@@ -19,6 +19,7 @@ pub async fn find_slot(
     ).await
 }
 
+// todo: instead of url accept Provider so IPC can be used
 fn http_provider_from_url(url: &str) -> RootProviderHttp {
     RootProviderHttp::new_http(url.parse().unwrap())
 }

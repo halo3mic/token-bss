@@ -20,9 +20,9 @@ pub enum Commands {
 pub struct FindStorageSlotArgs {
     #[arg(required = true, help = "Comma seperated token addresses.")]
     pub tokens: String,
-    #[arg(long, help = "Set Anvil RPC endpoint. Default is http://localhost:8545.")]
+    #[arg(long, help = "RPC endpoint that supports debug_traceCall with struct trace. Default is http://localhost:8545.")]
     pub rpc_url: Option<String>,
-    #[arg(long, help = "Set provider url to be forked. Default: None.")]
+    #[arg(long, help = "RPC provider that will be used in Anvil fork. Default: None.")]
     pub fork_rpc_url: Option<String>,
     #[arg(long, help = "True for unformatted output. Default: false.", default_value_t = false)]
     pub unformatted: bool,

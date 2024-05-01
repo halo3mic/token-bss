@@ -10,7 +10,7 @@ use crate::common::*;
 const BALANCEOF_4BYTE: &str = "0x70a08231";
 const CALL_GAS_LIMIT: u128 = 200_000;
 
-pub async fn call_balanceof(
+pub async fn call_request(
     provider: &RootProviderHttp,
     call_request: &TransactionRequest,
 ) -> Result<U256> {
@@ -19,7 +19,7 @@ pub async fn call_balanceof(
     Ok(balance)
 }
 
-pub async fn call_balanceof_with_storage_overrides(
+pub async fn call_request_with_storage_overrides(
     provider: &RootProviderHttp,
     call_request: &TransactionRequest,
     storage_contract: Address,

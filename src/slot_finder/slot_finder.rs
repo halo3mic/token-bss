@@ -66,14 +66,14 @@ async fn slot_update_to_bal_ratio(
     let map_loc = lang.mapping_loc(slot, holder);
     let call_request = token::balanceof_call_req(holder, token)?;
 
-    let override_bal_future = token::call_balanceof_with_storage_overrides(
+    let override_bal_future = token::call_request_with_storage_overrides(
         provider,
         &call_request,
         storage_contract,
         map_loc,
         new_slot_val,
     );
-    let real_bal_future = token::call_balanceof(provider, &call_request);
+    let real_bal_future = token::call_request(provider, &call_request);
     let (override_bal, real_bal) = tokio::try_join!(override_bal_future, real_bal_future)?;
 
     if override_bal == real_bal {

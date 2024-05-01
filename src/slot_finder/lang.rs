@@ -37,12 +37,12 @@ impl EvmLanguage {
         }
     }
 
-    // pub fn from_str(s: &str) -> Result<Self> {
-    //     match s.to_lowercase().as_str() {
-    //         "solidity" => Ok(EvmLanguage::Solidity),
-    //         "vyper" => Ok(EvmLanguage::Vyper),
-    //         _ => Err(eyre::eyre!("Invalid language")),
-    //     }
-    // }
+    pub fn from_str(s: &str) -> Result<Self> {
+        match s.to_lowercase().as_str() {
+            "solidity" => Ok(EvmLanguage::Solidity),
+            "vyper" => Ok(EvmLanguage::Vyper),
+            _ => Err(eyre::eyre!("Invalid language")),
+        }
+    }
 
 }
