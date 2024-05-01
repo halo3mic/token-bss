@@ -8,6 +8,7 @@ use super::{
 use crate::common::*;
 
 
+// todo: use a struct
 type SlotOutput = (Address, B256, f64, String);
 
 pub async fn find_balance_slots_and_update_ratio(
