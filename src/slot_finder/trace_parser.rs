@@ -45,7 +45,6 @@ impl TraceParser {
         if log.memory.as_ref().map(|m| m.len() < 2).unwrap_or(true) || log.stack.as_ref().is_none() {
             return Ok(());
         }
-        // Find the last value on the stack - this is the slot of the requested storage
         let stack = log.stack.as_ref().unwrap();
         let slot_idx: B256 = stack[stack.len()-1].into();
         if let Some((hashed_val_0, hashed_val_1)) = self.hashed_vals.get(&slot_idx) {

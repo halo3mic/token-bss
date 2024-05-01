@@ -1,5 +1,5 @@
 use crate::common::*;
-use rand;
+
 
 const DEFAULT_PRECISION_MUL: u128 = 10_000;
 
@@ -18,9 +18,11 @@ pub fn ratio_f64(val1: U256, val2: U256, precision_mul: Option<u128>) -> f64 {
     update_ratio
 }
 
-pub fn rand_num<T>() -> T 
-    where rand::distributions::Standard: rand::distributions::Distribution<T>
-{
-    rand::random::<T>()
+pub fn bytes_to_u256(val: Bytes) -> U256 {
+    let bytes = val.to_vec();
+    if bytes.len() == 0 {
+        U256::ZERO
+    } else {
+        B256::from_slice(&bytes[..32]).into()
+    }
 }
-

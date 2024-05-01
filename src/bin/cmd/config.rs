@@ -1,0 +1,1 @@
+pub const DEFAULT_RPC_URL: &str = "http://localhost:8545";

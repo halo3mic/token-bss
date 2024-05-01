@@ -4,7 +4,7 @@ use alloy::{
     rpc::types::trace::geth::{
         GethDefaultTracingOptions, 
         GethDebugTracingOptions, 
-        GethDebugTracerConfig, 
+        GethDebugTracerConfig,
         DefaultFrame, 
         GethTrace,
     },
@@ -19,10 +19,10 @@ pub async fn default_trace_call(
     let default_tracing_opt = GethDefaultTracingOptions {
         disable_stack: Some(false),
         disable_memory: Some(false),
+        enable_memory: Some(true),
         disable_return_data: None,
         enable_return_data: None,
         disable_storage: None,
-        enable_memory: None,
         debug: None,
         limit: None,
     };
