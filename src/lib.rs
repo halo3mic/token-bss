@@ -1,5 +1,5 @@
 mod common;
-pub mod slot_finder;
+mod slot_finder;
 
 use common::*;
 

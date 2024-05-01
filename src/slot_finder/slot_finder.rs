@@ -102,8 +102,7 @@ mod tests {
             Some(url) => Anvil::new().fork(url),
             None => Anvil::new(),
         }).spawn()
-    }
-    
+    } 
     
     pub fn env_var(var: &str) -> Result<String> {
         dotenv::dotenv().ok();
