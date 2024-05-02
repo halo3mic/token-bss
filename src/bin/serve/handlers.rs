@@ -1,6 +1,7 @@
 use alloy::primitives::{Address, U256};
 use serde::{Serialize, Deserialize};
 use std::time::Instant;
+use tokio::time::{timeout, Duration};
 use axum::{
     response::{Json, IntoResponse, Response as AxumResponse},
     extract::{Path, State},
@@ -71,7 +72,7 @@ where
     }
 }
 
-// todo: split expected and unexpected errors
+// todo: split into user vs internal errors
 pub async fn search_handler<T>(
     State(app_state): State<AppState<T>>,
     Path((chain_str, token_str)): Path<(String, String)>
@@ -89,7 +90,12 @@ pub async fn search_handler<T>(
             "token": token_str,
         }),
     }));
-    let res = _search_handler(State(app_state), Path((chain_str, token_str))).await;
+    let tm_out = app_state.timeout_ms;
+    let fut = _search_handler(State(app_state), Path((chain_str, token_str)));
+    let res = match timeout(Duration::from_millis(tm_out), fut).await {
+        Ok(res) => res,
+        Err(_) => Err(AppError(eyre::eyre!("Timeout"))),
+    };
 
     let res_str = match &res {
         Ok(Json(res)) => serde_json::to_string(res)?,
@@ -127,7 +133,7 @@ async fn _search_handler<T>(
         .get(&chain)
         .ok_or_else(|| eyre::eyre!(format!("Can't find provider for chain: {chain:?}")))?
         .endpoint;
-    // todo: someone could spam tokens that don't exist or take a long time to process (set a limit + store err in db)
+    // todo: store "slot not found response in db"
     let response = erc20_topup::find_slot(&endpoint, token, None).await?;
 
     let response = SearchResponse {

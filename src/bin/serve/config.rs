@@ -2,6 +2,7 @@ use super::state::Chain;
 use eyre::Result;
 
 
+pub const DEFAULT_TIMEOUT_MS: u64 = 5000;
 pub const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u32 = 3000;
 
@@ -10,6 +11,7 @@ pub struct Config {
     pub chain_configs: Vec<ChainConfig>,
     pub redis_config: Option<RedisConfig>,
     pub logging_enabled: bool,
+    pub timeout_ms: u64,
 }
 
 pub struct ChainConfig {
@@ -90,12 +92,16 @@ impl Config {
         // Logging config
         let logging_enabled = std::env::var("LOGGING_ENABLED").ok()
             .map(|s| s == "1").unwrap_or(false);
+        let timeout_ms = std::env::var("TIMEOUT_MS").ok()
+            .and_then(|t_str| t_str.parse::<u64>().ok())
+            .unwrap_or(DEFAULT_TIMEOUT_MS);
 
         Ok(Self {
             logging_enabled,
             chain_configs,
             redis_config,
             server_addr,
+            timeout_ms,
         })
     }
 }

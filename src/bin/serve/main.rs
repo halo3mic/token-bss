@@ -35,11 +35,12 @@ async fn main() -> Result<()> {
         app_providers.set_provider(chain_config.chain, endpoint, handler);
     }
 
-    let mut app_state: state::AppState<_> = app_providers.into();
-    if let Some(redis_config) = configs.redis_config {
-        let redis_connection = db::RedisConnection::connect(redis_config)?;
-        app_state.set_db_connection(redis_connection);
-    }
+    let redis_conn = configs.redis_config.map(|c| c.try_into()).transpose()?;
+    let app_state = state::AppState::new(
+        app_providers.build(), 
+        redis_conn,
+        configs.timeout_ms,
+    );
 
     server::run(&configs.server_addr, app_state).await?;
 

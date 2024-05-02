@@ -1,9 +1,15 @@
 
-use std::collections::HashMap;
-use std::str::FromStr;
-use std::hash::Hash;
-use std::sync::{Arc, Mutex};
-use crate::db::RedisConnection;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    str::FromStr,
+    hash::Hash,
+};
+use crate::{
+    config::DEFAULT_TIMEOUT_MS,
+    db::RedisConnection,
+};
+
 
 #[derive(Clone)]
 pub struct AppState<T> 
@@ -11,17 +17,38 @@ pub struct AppState<T>
 {
     pub providers: Arc<HashMap<Chain, AppProvider<T>>>,
     pub db_connection: Option<Arc<Mutex<RedisConnection>>>,
+    pub timeout_ms: u64,
 }
 
 impl<T> AppState<T> 
     where T: Sync + Send + Clone + 'static
 {
-    pub fn set_db_connection(
-        &mut self,
-        db_connection: RedisConnection
-    ) -> () {
-        self.db_connection = Some(Arc::new(Mutex::new(db_connection)));
+
+    pub fn new(
+        providers: HashMap<Chain, AppProvider<T>>,
+        db_connection: Option<RedisConnection>,
+        timeout_ms: u64,
+    ) -> Self {
+        Self {
+            providers: Arc::new(providers),
+            db_connection: db_connection.map(|conn| Arc::new(Mutex::new(conn))),
+            timeout_ms,
+        }
     }
+
+    // pub fn set_db_connection(
+    //     &mut self,
+    //     db_connection: RedisConnection
+    // ) -> () {
+    //     self.db_connection = Some(Arc::new(Mutex::new(db_connection)));
+    // }
+
+    // pub fn set_timeout_ms(
+    //     &mut self,
+    //     timeout_ms: u64
+    // ) -> () {
+    //     self.timeout_ms = timeout_ms;
+    // }
 }
 
 pub struct AppProviders<T>(HashMap<Chain, AppProvider<T>>)
@@ -53,7 +80,11 @@ impl<T> Into<AppState<T>> for AppProviders<T>
     where T: Sync + Send + Clone + 'static
 {
     fn into(self) -> AppState<T> {
-        AppState { providers: Arc::new(self.build()), db_connection: None }
+        AppState { 
+            providers: Arc::new(self.build()),
+            timeout_ms: DEFAULT_TIMEOUT_MS,
+            db_connection: None
+        }
     }
 }
 

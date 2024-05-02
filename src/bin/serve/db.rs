@@ -10,8 +10,7 @@ pub struct RedisConnection(Connection);
 
 impl RedisConnection {
     
-    pub fn connect(RedisConfig { addr, password, is_tls }: RedisConfig) -> Result<Self> {
-        println!("{:?}", (addr.clone(), password.clone(), is_tls));
+    fn connect(RedisConfig { addr, password, is_tls }: RedisConfig) -> Result<Self> {
         let password = password.unwrap_or_default();
         let uri_scheme = match is_tls {
             true => "rediss",
@@ -36,6 +35,14 @@ impl RedisConnection {
         Ok(val)
     }
 
+}
+
+impl TryFrom<RedisConfig> for RedisConnection {
+    type Error = eyre::Error;
+
+    fn try_from(config: RedisConfig) -> Result<Self> {
+        Self::connect(config)
+    }
 }
 
 #[inline]
