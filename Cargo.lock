@@ -932,6 +932,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 
 [[package]]
+name = "combine"
+version = "4.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
+dependencies = [
+ "bytes",
+ "memchr",
+]
+
+[[package]]
 name = "const-hex"
 version = "1.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1156,6 +1166,7 @@ dependencies = [
  "hex",
  "jsonrpc",
  "rand",
+ "redis",
  "reqwest",
  "serde",
  "serde_json",
@@ -2242,6 +2253,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "redis"
+version = "0.25.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6472825949c09872e8f2c50bde59fcefc17748b6be5c90fd67cd8b4daca73bfd"
+dependencies = [
+ "combine",
+ "itoa",
+ "percent-encoding",
+ "ryu",
+ "sha1_smol",
+ "socket2",
+ "url",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2570,6 +2596,12 @@ dependencies = [
  "cpufeatures",
  "digest 0.10.7",
 ]
+
+[[package]]
+name = "sha1_smol"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae1a47186c03a32177042e55dbc5fd5aee900b8e0069a8d70fba96a9375cd012"
 
 [[package]]
 name = "sha2"

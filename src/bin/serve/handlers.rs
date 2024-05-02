@@ -39,7 +39,7 @@ impl From<&AppError> for Response {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SearchResponse {
     token: Address,
     contract: Address,
@@ -115,10 +115,19 @@ async fn _search_handler<T>(
     let chain = chain_str.parse::<Chain>()?;
     let token: Address = token_str.parse().map_err(|_| eyre::eyre!("Invalid token"))?;
 
+    if let Some(db_conn) = &app_state.db_connection {
+        let mut db_conn = db_conn.lock().unwrap();
+        let entry = db_conn.get_entry(&token, &chain)?;
+        if let Some(entry) = entry {
+            return Ok(Json(Response::from(entry)));
+        }
+    }
+
     let endpoint = &app_state.providers
         .get(&chain)
         .ok_or_else(|| eyre::eyre!(format!("Can't find provider for chain: {chain:?}")))?
         .endpoint;
+    // todo: someone could spam tokens that don't exist or take a long time to process (set a limit + store err in db)
     let response = erc20_topup::find_slot(&endpoint, token, None).await?;
 
     let response = SearchResponse {
@@ -128,6 +137,11 @@ async fn _search_handler<T>(
         update_ratio: response.2,
         lang: response.3,
     };
+
+    if let Some(db_conn) = app_state.db_connection {
+        let mut db_conn = db_conn.lock().unwrap();
+        db_conn.store_entry(&token, &chain, &response)?; // todo this err should not be propagated to the user
+    }
 
     Ok(Json(response.into()))
 }

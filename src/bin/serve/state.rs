@@ -2,14 +2,26 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::hash::Hash;
-use std::sync::Arc;
-
+use std::sync::{Arc, Mutex};
+use crate::db::RedisConnection;
 
 #[derive(Clone)]
 pub struct AppState<T> 
     where T: Sync + Send + Clone + 'static
 {
     pub providers: Arc<HashMap<Chain, AppProvider<T>>>,
+    pub db_connection: Option<Arc<Mutex<RedisConnection>>>,
+}
+
+impl<T> AppState<T> 
+    where T: Sync + Send + Clone + 'static
+{
+    pub fn set_db_connection(
+        &mut self,
+        db_connection: RedisConnection
+    ) -> () {
+        self.db_connection = Some(Arc::new(Mutex::new(db_connection)));
+    }
 }
 
 pub struct AppProviders<T>(HashMap<Chain, AppProvider<T>>)
@@ -41,7 +53,7 @@ impl<T> Into<AppState<T>> for AppProviders<T>
     where T: Sync + Send + Clone + 'static
 {
     fn into(self) -> AppState<T> {
-        AppState { providers: Arc::new(self.build()) }
+        AppState { providers: Arc::new(self.build()), db_connection: None }
     }
 }
 

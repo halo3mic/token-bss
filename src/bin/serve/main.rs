@@ -3,6 +3,7 @@ mod server;
 mod utils;
 mod state;
 mod config;
+mod db;
 
 use std::sync::Arc;
 use tracing::info;
@@ -12,15 +13,17 @@ use config::{Config, RpcUrl};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let config = Config::from_env()?;
-    if config.chain_configs.is_empty() {
+    let configs = Config::from_env()?;
+
+    if configs.chain_configs.is_empty() {
         return Err(eyre::eyre!("No chain configs found"));
     }
+    if configs.logging_enabled {
+        tracing_subscriber::fmt::init();
+    }
 
-    tracing_subscriber::fmt::init(); // todo: only if logging is on
-
-    let mut app_state = state::AppProviders::new();
-    for chain_config in config.chain_configs {
+    let mut app_providers = state::AppProviders::new();
+    for chain_config in configs.chain_configs {
         let (endpoint, handler) = match chain_config.rpc_url {
             RpcUrl::Primary(url) => (url, None),
             RpcUrl::Fallack(url) => {
@@ -29,10 +32,16 @@ async fn main() -> Result<()> {
             },
         };
         info!("Added provider for chain: {:?} with endpoint {endpoint:?}", chain_config.chain);
-        app_state.set_provider(chain_config.chain, endpoint, handler);
+        app_providers.set_provider(chain_config.chain, endpoint, handler);
     }
 
-    server::run(&config.server_addr, app_state.into()).await?;
+    let mut app_state: state::AppState<_> = app_providers.into();
+    if let Some(redis_config) = configs.redis_config {
+        let redis_connection = db::RedisConnection::connect(redis_config)?;
+        app_state.set_db_connection(redis_connection);
+    }
+
+    server::run(&configs.server_addr, app_state).await?;
 
     Ok(())
 
