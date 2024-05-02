@@ -12,6 +12,7 @@ pub struct Config {
     pub redis_config: Option<RedisConfig>,
     pub logging_enabled: bool,
     pub timeout_ms: u64,
+    pub anvil_config: AnvilConfig,
 }
 
 pub struct ChainConfig {
@@ -29,6 +30,13 @@ pub struct RedisConfig {
     pub addr: String,
     pub password: Option<String>,
     pub is_tls: bool,
+}
+
+#[derive(Default)]
+pub struct AnvilConfig {
+    pub cpu_per_sec: Option<u32>, 
+    pub memory_limit: Option<u32>,
+    pub timeout: Option<u32>,
 }
 
 impl Config {
@@ -88,8 +96,17 @@ impl Config {
             } else {
                 None
             };
+
+        // Anvil config
+        let mut anvil_config = AnvilConfig::default();
+        anvil_config.cpu_per_sec = std::env::var("ANVIL_CPU_PER_SEC").ok()
+            .and_then(|s| s.parse::<u32>().ok());
+        anvil_config.memory_limit = std::env::var("ANVIL_MEMORY_LIMIT").ok()
+            .and_then(|s| s.parse::<u32>().ok());
+        anvil_config.timeout = std::env::var("ANVIL_TIMEOUT_MS").ok()
+            .and_then(|s| s.parse::<u32>().ok());
+
         
-        // Logging config
         let logging_enabled = std::env::var("LOGGING_ENABLED").ok()
             .map(|s| s == "1").unwrap_or(false);
         let timeout_ms = std::env::var("TIMEOUT_MS").ok()
@@ -99,6 +116,7 @@ impl Config {
         Ok(Self {
             logging_enabled,
             chain_configs,
+            anvil_config,
             redis_config,
             server_addr,
             timeout_ms,

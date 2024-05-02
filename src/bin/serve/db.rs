@@ -4,6 +4,7 @@ use eyre::Result;
 use crate::handlers::SearchResponse;
 use crate::config::RedisConfig;
 use crate::state::Chain;
+use tracing::info;
 
 
 pub struct RedisConnection(Connection);
@@ -18,6 +19,7 @@ impl RedisConnection {
         };
         let redis_conn_url = format!("{uri_scheme}://:{password}@{addr}");
         let conn = redis::Client::open(redis_conn_url)?.get_connection()?;
+        info!("Connected to Redis at: {}", addr);
         Ok(Self(conn))
     }
 
