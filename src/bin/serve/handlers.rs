@@ -137,6 +137,12 @@ where
     }
 }
 
+#[derive(Debug, Serialize)]
+enum InfoSource {
+    Provider,
+    Database,
+}
+
 pub async fn search_handler<T>(
     State(app_state): State<AppState<T>>,
     Path((chain_str, token_str)): Path<(String, String)>
@@ -161,25 +167,27 @@ pub async fn search_handler<T>(
         Err(_) => Err(AppError::UserError(UserError::Timeout)),
     };
 
-    let res_str = match &res {
-        Ok(Json(res)) => serde_json::to_string(res)?,
-        Err(ref err) => serde_json::to_string(&Response::from(err))?,
+    let (res_str, source) = match &res {
+        Ok((Json(res), source)) => (serde_json::to_string(res)?, Some(source)),
+        Err(ref err) => (serde_json::to_string(&Response::from(err))?, None),
     };
     let duration_ms = rtime0.elapsed().as_millis();
+    let source = source.map(|s| format!("{s:?}")).unwrap_or("null".to_string());
     info!("{}", serde_json::json!({
         "msg": "new_response",
         "handler": "search_handler",
         "id": request_id,
         "response": res_str,
         "duration": duration_ms,
+        "source": source,
     }));
-    res
+    res.map(|(res, _)| res)
 }
 
 async fn _search_handler<T>(
     State(app_state): State<AppState<T>>,
     Path((chain_str, token_str)): Path<(String, String)>
-) -> Result<Json<Response>, AppError> 
+) -> Result<(Json<Response>, InfoSource), AppError> 
     where T: Sync + Send + Clone + 'static
 {
     let chain = chain_str.parse::<Chain>()
@@ -193,7 +201,7 @@ async fn _search_handler<T>(
         if let Some(response) = response {
             return match response {
                 SearchResponseWrapper::NotFound => Err(AppError::UserError(UserError::SlotNotFound)),
-                SearchResponseWrapper::Found(entry) => Ok(Json(Response::from(entry))),
+                SearchResponseWrapper::Found(entry) => Ok((Json(Response::from(entry)), InfoSource::Database)),
             };
         }
     }
@@ -230,5 +238,5 @@ async fn _search_handler<T>(
         db_conn.store_search_response(&token, &chain, &response)?;
     }
 
-    Ok(Json(response.into()))
+    Ok((Json(response.into()), InfoSource::Provider))
 }
