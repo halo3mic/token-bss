@@ -35,20 +35,6 @@ impl<T> AppState<T>
             timeout_ms,
         }
     }
-
-    // pub fn set_db_connection(
-    //     &mut self,
-    //     db_connection: RedisConnection
-    // ) -> () {
-    //     self.db_connection = Some(Arc::new(Mutex::new(db_connection)));
-    // }
-
-    // pub fn set_timeout_ms(
-    //     &mut self,
-    //     timeout_ms: u64
-    // ) -> () {
-    //     self.timeout_ms = timeout_ms;
-    // }
 }
 
 pub struct AppProviders<T>(HashMap<Chain, AppProvider<T>>)

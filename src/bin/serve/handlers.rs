@@ -7,7 +7,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
-use tracing::info;
+use tracing::{info, error};
 use super::state::{Chain, AppState};
 
 
@@ -30,14 +30,34 @@ impl From<SearchResponse> for Response {
     }
 }
 
-impl From<&AppError> for Response {
-    fn from(err: &AppError) -> Self {
+impl From<&UserError> for Response {
+    fn from(err: &UserError) -> Self {
         Self {
             success: false,
             msg: None,
-            error: Some(err.0.to_string()),
+            error: Some(format!("{err:?}")),
         }
     }
+}
+
+impl From<&eyre::Report> for Response {
+    fn from(err: &eyre::Report) -> Self {
+        Self {
+            success: false,
+            msg: None,
+            error: Some(format!("{err:#}")),
+        }
+    }
+}
+
+impl From<&AppError> for Response {
+    fn from(err: &AppError) -> Self {
+        match err {
+            AppError::UserError(err) => Self::from(err),
+            AppError::InternalError(err) => Self::from(err),
+        }
+    }
+
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -51,15 +71,48 @@ pub struct SearchResponse {
 }
 
 #[derive(Debug)]
-pub struct AppError(eyre::Error);
+pub enum AppError {
+    UserError(UserError),
+    InternalError(eyre::Error),
+}
+
+#[derive(Debug)]
+pub enum UserError {
+    InvalidToken,
+    ChainNotFound,
+    ProviderNotFound,
+    Timeout,
+    SlotNotFound,
+}
 
 impl IntoResponse for AppError {
     fn into_response(self) -> AxumResponse {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::to_string(&Response::from(&self)).unwrap(),
-        )
-            .into_response()
+        match self {
+            AppError::UserError(err) => match err {
+                UserError::InvalidToken | UserError::ChainNotFound | UserError::ProviderNotFound => (
+                    StatusCode::BAD_REQUEST,
+                    serde_json::to_string(&Response::from(&err)).unwrap(),
+                )
+                    .into_response(),
+                UserError::Timeout => (
+                    StatusCode::GATEWAY_TIMEOUT,
+                    serde_json::to_string(&Response::from(&err)).unwrap(),
+                )
+                    .into_response(),
+                UserError::SlotNotFound => (
+                    StatusCode::NOT_FOUND,
+                    serde_json::to_string(&Response::from(&err)).unwrap(),
+                )
+                    .into_response(),
+            },
+            AppError::InternalError(err) => {
+                error!("{:#}", err);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    serde_json::to_string(&Response::from(&eyre::eyre!("InternalError"))).unwrap(),
+                ).into_response()
+            }
+        }
     }
 }
 
@@ -68,11 +121,10 @@ where
     E: Into<eyre::Error>,
 {
     fn from(err: E) -> Self {
-        Self(err.into())
+        Self::InternalError(err.into())
     }
 }
 
-// todo: split into user vs internal errors
 pub async fn search_handler<T>(
     State(app_state): State<AppState<T>>,
     Path((chain_str, token_str)): Path<(String, String)>
@@ -94,7 +146,7 @@ pub async fn search_handler<T>(
     let fut = _search_handler(State(app_state), Path((chain_str, token_str)));
     let res = match timeout(Duration::from_millis(tm_out), fut).await {
         Ok(res) => res,
-        Err(_) => Err(AppError(eyre::eyre!("Timeout"))),
+        Err(_) => Err(AppError::UserError(UserError::Timeout)),
     };
 
     let res_str = match &res {
@@ -118,8 +170,10 @@ async fn _search_handler<T>(
 ) -> Result<Json<Response>, AppError> 
     where T: Sync + Send + Clone + 'static
 {
-    let chain = chain_str.parse::<Chain>()?;
-    let token: Address = token_str.parse().map_err(|_| eyre::eyre!("Invalid token"))?;
+    let chain = chain_str.parse::<Chain>()
+        .map_err(|_| AppError::UserError(UserError::ChainNotFound))?;
+    let token: Address = token_str.parse()
+        .map_err(|_| AppError::UserError(UserError::InvalidToken))?;
 
     if let Some(db_conn) = &app_state.db_connection {
         let mut db_conn = db_conn.lock().unwrap();
@@ -131,10 +185,17 @@ async fn _search_handler<T>(
 
     let endpoint = &app_state.providers
         .get(&chain)
-        .ok_or_else(|| eyre::eyre!(format!("Can't find provider for chain: {chain:?}")))?
+        .ok_or(AppError::UserError(UserError::ProviderNotFound))?
         .endpoint;
     // todo: store "slot not found response in db"
-    let response = erc20_topup::find_slot(&endpoint, token, None).await?;
+    let response = erc20_topup::find_slot(&endpoint, token, None).await
+        .map_err(|err| {
+            if err.to_string().contains("No valid slots found") {
+                AppError::UserError(UserError::SlotNotFound)
+            } else {
+                AppError::InternalError(err)
+            }
+        })?;
 
     let response = SearchResponse {
         token: token,
@@ -146,7 +207,7 @@ async fn _search_handler<T>(
 
     if let Some(db_conn) = app_state.db_connection {
         let mut db_conn = db_conn.lock().unwrap();
-        db_conn.store_entry(&token, &chain, &response)?; // todo this err should not be propagated to the user
+        db_conn.store_entry(&token, &chain, &response)?;
     }
 
     Ok(Json(response.into()))
