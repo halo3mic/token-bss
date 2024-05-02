@@ -22,7 +22,7 @@ pub struct ChainConfig {
 
 pub enum RpcUrl {
     Primary(String),
-    Fallack(String),
+    Fork(String),
 }
 
 #[derive(Default)]
@@ -71,7 +71,7 @@ impl Config {
                     let fallback_key = format!("{}_FORK_RPC", chain.to_string().to_uppercase());
                     std::env::var(fallback_key).ok()
                         .and_then(|s| (!s.trim().is_empty()).then(|| s))
-                        .map(RpcUrl::Fallack)
+                        .map(RpcUrl::Fork)
                 })
                 .map(|url| ChainConfig { chain, rpc_url: url })
         }).collect::<Vec<_>>();
