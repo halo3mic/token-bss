@@ -1,7 +1,7 @@
 use redis::{Commands, Connection};
 use alloy::primitives::Address;
 use eyre::Result;
-use crate::handlers::SearchResponse;
+use crate::handlers::SearchResponseWrapper;
 use crate::config::RedisConfig;
 use crate::state::Chain;
 use tracing::info;
@@ -23,14 +23,14 @@ impl RedisConnection {
         Ok(Self(conn))
     }
 
-    pub fn store_entry(&mut self, address: &Address, chain_id: &Chain, result: &SearchResponse) -> Result<()> {
+    pub fn store_search_response(&mut self, address: &Address, chain_id: &Chain, result: &SearchResponseWrapper) -> Result<()> {
         let key = make_key(address, chain_id);
         let val_str = serde_json::to_string(result)?;
         self.0.set(&key, val_str)?;
         Ok(())
     }
 
-    pub fn get_entry(&mut self, address: &Address, chain_id: &Chain) -> Result<Option<SearchResponse>> {
+    pub fn get_search_response(&mut self, address: &Address, chain_id: &Chain) -> Result<Option<SearchResponseWrapper>> {
         let key = make_key(address, chain_id);
         let val_str: Option<String> = self.0.get(&key)?;
         let val = val_str.map(|val| serde_json::from_str(&val)).transpose()?;

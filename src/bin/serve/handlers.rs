@@ -61,6 +61,18 @@ impl From<&AppError> for Response {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum SearchResponseWrapper {
+    Found(SearchResponse),
+    NotFound,
+}
+
+impl From<SearchResponse> for SearchResponseWrapper {
+    fn from(msg: SearchResponse) -> Self {
+        Self::Found(msg)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SearchResponse {
     token: Address,
     contract: Address,
@@ -177,9 +189,12 @@ async fn _search_handler<T>(
 
     if let Some(db_conn) = &app_state.db_connection {
         let mut db_conn = db_conn.lock().unwrap();
-        let entry = db_conn.get_entry(&token, &chain)?;
-        if let Some(entry) = entry {
-            return Ok(Json(Response::from(entry)));
+        let response = db_conn.get_search_response(&token, &chain)?;
+        if let Some(response) = response {
+            return match response {
+                SearchResponseWrapper::NotFound => Err(AppError::UserError(UserError::SlotNotFound)),
+                SearchResponseWrapper::Found(entry) => Ok(Json(Response::from(entry))),
+            };
         }
     }
 
@@ -187,10 +202,14 @@ async fn _search_handler<T>(
         .get(&chain)
         .ok_or(AppError::UserError(UserError::ProviderNotFound))?
         .endpoint;
-    // todo: store "slot not found response in db"
     let response = erc20_topup::find_slot(&endpoint, token, None).await
         .map_err(|err| {
             if err.to_string().contains("No valid slots found") {
+                if let Some(db_conn) = &app_state.db_connection {
+                    let mut db_conn = db_conn.lock().unwrap();
+                    let response = SearchResponseWrapper::NotFound;
+                    db_conn.store_search_response(&token, &chain, &response).unwrap(); // todo dont unwrap!
+                }
                 AppError::UserError(UserError::SlotNotFound)
             } else {
                 AppError::InternalError(err)
@@ -207,7 +226,8 @@ async fn _search_handler<T>(
 
     if let Some(db_conn) = app_state.db_connection {
         let mut db_conn = db_conn.lock().unwrap();
-        db_conn.store_entry(&token, &chain, &response)?;
+        let response = response.clone().into();
+        db_conn.store_search_response(&token, &chain, &response)?;
     }
 
     Ok(Json(response.into()))

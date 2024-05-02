@@ -27,5 +27,6 @@ pub fn spawn_anvil(fork_url: Option<&str>, config: Option<&AnvilConfig>) -> Anvi
             ]);
         }
     }
+    anvil = anvil.arg("--no-storage-caching");
     anvil.spawn()
 }
