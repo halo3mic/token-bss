@@ -3,7 +3,7 @@ use eyre::Result;
 
 
 pub const DEFAULT_HOST: &str = "127.0.0.1";
-const DEFAULT_PORT: u32 = 3001;
+const DEFAULT_PORT: u32 = 3000;
 
 pub struct Config {
     pub server_addr: String,
@@ -20,8 +20,7 @@ pub enum RpcUrl {
     Primary(String),
     Fallack(String),
 }
-// Server running on: 127.0.0.1:8080
-// Server running on: 127.0.0.1:8080
+
 impl Config {
 
     pub fn from_env() -> Result<Self> {

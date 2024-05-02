@@ -5,6 +5,7 @@ mod state;
 mod config;
 
 use std::sync::Arc;
+use tracing::info;
 use eyre::Result;
 use config::{Config, RpcUrl};
 
@@ -13,9 +14,10 @@ use config::{Config, RpcUrl};
 async fn main() -> Result<()> {
     let config = Config::from_env()?;
     if config.chain_configs.is_empty() {
-        eprintln!("No endpoint for any chain");
-        return Ok(());
+        return Err(eyre::eyre!("No chain configs found"));
     }
+
+    tracing_subscriber::fmt::init(); // todo: only if logging is on
 
     let mut app_state = state::AppProviders::new();
     for chain_config in config.chain_configs {
@@ -26,7 +28,7 @@ async fn main() -> Result<()> {
                 (anvil.endpoint(), Some(Arc::new(anvil)))
             },
         };
-        println!("Added provider for chain: {:?} with endpoint {endpoint:?}", chain_config.chain);
+        info!("Added provider for chain: {:?} with endpoint {endpoint:?}", chain_config.chain);
         app_state.set_provider(chain_config.chain, endpoint, handler);
     }
 
