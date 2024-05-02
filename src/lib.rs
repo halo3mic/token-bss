@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 mod common;
 mod slot_finder;
 

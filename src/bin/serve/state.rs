@@ -62,12 +62,12 @@ impl<T> AppProviders<T>
     }
 }
 
-impl<T> Into<AppState<T>> for AppProviders<T> 
+impl<T> From<AppProviders<T>> for AppState<T> 
     where T: Sync + Send + Clone + 'static
 {
-    fn into(self) -> AppState<T> {
-        AppState { 
-            providers: Arc::new(self.build()),
+    fn from(providers: AppProviders<T>) -> Self {
+        Self { 
+            providers: Arc::new(providers.build()),
             timeout_ms: DEFAULT_TIMEOUT_MS,
             db_connection: None
         }

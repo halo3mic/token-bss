@@ -48,7 +48,7 @@ impl Config {
 
         // Server config
         let host = std::env::var("SERVER_HOST").ok()
-            .and_then(|s| (!s.trim().is_empty()).then(|| s))
+            .and_then(|s| (!s.trim().is_empty()).then_some(s))
             .unwrap_or(DEFAULT_HOST.to_string());
         let port = std::env::var("SERVER_PORT").ok()
             .and_then(|p_str| p_str.parse::<u32>().ok())
@@ -65,12 +65,12 @@ impl Config {
         let chain_configs = available_chains.into_iter().filter_map(|chain| {
             let primary_key = format!("{}_RPC", chain.to_string().to_uppercase());
             std::env::var(primary_key).ok()
-                .and_then(|s| (!s.trim().is_empty()).then(|| s))
+                .and_then(|s| (!s.trim().is_empty()).then_some(s))
                 .map(RpcUrl::Primary)
                 .or_else(|| {
                     let fallback_key = format!("{}_FORK_RPC", chain.to_string().to_uppercase());
                     std::env::var(fallback_key).ok()
-                        .and_then(|s| (!s.trim().is_empty()).then(|| s))
+                        .and_then(|s| (!s.trim().is_empty()).then_some(s))
                         .map(RpcUrl::Fork)
                 })
                 .map(|url| ChainConfig { chain, rpc_url: url })
@@ -83,7 +83,7 @@ impl Config {
             if redis_enabled {
                 let mut redis_config = RedisConfig::default();
                 let redis_host = std::env::var("REDIS_HOST").ok()
-                    .and_then(|s| (!s.trim().is_empty()).then(|| s))
+                    .and_then(|s| (!s.trim().is_empty()).then_some(s))
                     .unwrap_or("localhost".to_string());
                 let redis_port = std::env::var("REDIS_PORT").ok()
                     .and_then(|p_str| p_str.parse::<u32>().ok())
@@ -97,15 +97,14 @@ impl Config {
                 None
             };
 
-        // Anvil config
-        let mut anvil_config = AnvilConfig::default();
-        anvil_config.cpu_per_sec = std::env::var("ANVIL_CPU_PER_SEC").ok()
-            .and_then(|s| s.parse::<u32>().ok());
-        anvil_config.memory_limit = std::env::var("ANVIL_MEMORY_LIMIT").ok()
-            .and_then(|s| s.parse::<u32>().ok());
-        anvil_config.timeout = std::env::var("ANVIL_TIMEOUT_MS").ok()
-            .and_then(|s| s.parse::<u32>().ok());
-
+        let anvil_config = AnvilConfig {
+            cpu_per_sec: std::env::var("ANVIL_CPU_PER_SEC").ok()
+                .and_then(|s| s.parse::<u32>().ok()),
+            memory_limit: std::env::var("ANVIL_MEMORY_LIMIT").ok()
+                .and_then(|s| s.parse::<u32>().ok()),
+            timeout: std::env::var("ANVIL_TIMEOUT_MS").ok()
+                .and_then(|s| s.parse::<u32>().ok()),
+        };
         
         let logging_enabled = std::env::var("LOGGING_ENABLED").ok()
             .map(|s| s == "1").unwrap_or(false);

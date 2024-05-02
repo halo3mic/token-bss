@@ -210,7 +210,7 @@ async fn _search_handler<T>(
         .get(&chain)
         .ok_or(AppError::UserError(UserError::ProviderNotFound))?
         .endpoint;
-    let response = erc20_topup::find_slot(&endpoint, token, None).await
+    let response = erc20_topup::find_slot(endpoint, token, None).await
         .map_err(|err| {
             if err.to_string().contains("No valid slots found") {
                 if let Some(db_conn) = &app_state.db_connection {
@@ -225,7 +225,7 @@ async fn _search_handler<T>(
         })?;
 
     let response = SearchResponse {
-        token: token,
+        token,
         contract: response.0,
         slot: response.1.into(),
         update_ratio: response.2,

@@ -26,23 +26,29 @@ impl EvmLanguage {
     }
 
     fn mapping_loc_from_tokens(token_0: &FixedBytes<32>, token_1: &FixedBytes<32>) -> B256 {
-        let hashable = vec![token_0.0.to_vec(), token_1.0.to_vec()].concat();
-        alloy_utils::keccak256(&hashable).into()
+        let hashable = [token_0.0.to_vec(), token_1.0.to_vec()].concat();
+        alloy_utils::keccak256(hashable)
     }
 
-    pub fn to_string(&self) -> String {
-        match &self {
-            EvmLanguage::Solidity => String::from("solidity"),
-            EvmLanguage::Vyper => String::from("vyper"),
+}
+
+impl std::fmt::Display for EvmLanguage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EvmLanguage::Solidity => write!(f, "solidity"),
+            EvmLanguage::Vyper => write!(f, "vyper"),
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Result<Self> {
+impl std::str::FromStr for EvmLanguage {
+    type Err = eyre::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
             "solidity" => Ok(EvmLanguage::Solidity),
             "vyper" => Ok(EvmLanguage::Vyper),
             _ => Err(eyre::eyre!("Invalid language")),
         }
     }
-
 }

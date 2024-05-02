@@ -36,7 +36,7 @@ pub async fn default_trace_call(
     let block = block.unwrap_or(BlockNumberOrTag::Latest);
     let response = provider.debug_trace_call(
         call_request, 
-        block.into(), 
+        block, 
         tracing_options,
     ).await?;
 
