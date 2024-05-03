@@ -27,7 +27,11 @@ async fn main() -> Result<()> {
         let (endpoint, handler) = match chain_config.rpc_url {
             RpcUrl::Primary(url) => (url, None),
             RpcUrl::Fork(url) => {
-                let anvil = utils::spawn_anvil(Some(&url), Some(&configs.anvil_config));
+                let anvil = utils::spawn_anvil(
+                    Some(&url), 
+                    Some(&configs.anvil_config),
+                    Some(matches!(chain_config.chain, state::Chain::Optimism)),
+                );
                 (anvil.endpoint(), Some(Arc::new(anvil)))
             },
         };

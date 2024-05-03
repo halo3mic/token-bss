@@ -2,7 +2,12 @@ use alloy::node_bindings::{Anvil, AnvilInstance};
 use crate::config::AnvilConfig;
 
 
-pub fn spawn_anvil(fork_url: Option<&str>, config: Option<&AnvilConfig>) -> AnvilInstance {
+pub fn spawn_anvil(
+    fork_url: Option<&str>, 
+    config: Option<&AnvilConfig>, 
+    fork_optimism: Option<bool>,
+) -> AnvilInstance {
+    let fork_optimism = fork_optimism.unwrap_or(false);
     let mut anvil = match fork_url {
         Some(url) => Anvil::new().fork(url),
         None => Anvil::new(),
@@ -27,6 +32,9 @@ pub fn spawn_anvil(fork_url: Option<&str>, config: Option<&AnvilConfig>) -> Anvi
             ]);
         }
     }
-    anvil = anvil.arg("--no-storage-caching");
+    if fork_optimism {
+        anvil = anvil.args(vec!["--optimism"]);
+    }
+
     anvil.spawn()
 }
