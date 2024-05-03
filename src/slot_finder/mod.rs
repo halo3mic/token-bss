@@ -1,3 +1,4 @@
+#[warn(clippy::module_inception)]
 mod trace_parser;
 mod slot_finder;
 mod lang;

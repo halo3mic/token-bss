@@ -16,7 +16,7 @@ impl TraceParser {
 
     pub fn parse(struct_logs: Vec<StructLog>, token: Address, holder: Address) -> Result<Vec<(Address, B256, EvmLanguage)>> {
         let mut parser = TraceParser::default();
-        parser.holder = holder;
+        parser.set_holder(holder);
         parser.depth_to_address.insert(1, token);
         parser.parse_logs(struct_logs)?;
         Ok(parser.results.into_iter().collect())
@@ -90,6 +90,10 @@ impl TraceParser {
         let prev_address = *self.depth_to_address.get(&depth).unwrap();
         self.depth_to_address.insert(depth + 1, prev_address);
         Ok(())
+    }
+
+    fn set_holder(&mut self, holder: Address) {
+        self.holder = holder;
     }
 
 }

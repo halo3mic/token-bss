@@ -111,7 +111,7 @@ mod tests {
     }
 
     fn rpc_endpoint() -> Result<String> {
-        env_var("RPC_URL") // todo: rename this to test-rpc or emphasize that it must be eth based
+        env_var("ETH_RPC_URL")
     }
 
     #[tokio::test]
