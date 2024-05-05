@@ -2,12 +2,13 @@ use std::str::FromStr;
 use reqwest::Client;
 use alloy::{
     rpc::types::eth::{TransactionRequest, BlockId},
-    transports::http::Http,
+    rpc::client::ClientRef,
+    transports::{http::Http, Transport},
     providers::{Provider, RootProvider},
     network::TransactionBuilder,
     primitives::{
         Address, B256, U256, Bytes,
-        utils as alloy_utils,
+        utils as alloy_utils
     },
 };
 use eyre::Result;
@@ -36,7 +37,6 @@ pub async fn set_balance(
     let target_bal_fixed = token_dec_to_fixed(&provider, token, target_balance).await?;
     let resulting_balance = update_balance(
         &provider,
-        provider_url,
         token, 
         holder,
         target_bal_fixed,
@@ -50,7 +50,6 @@ pub async fn set_balance(
 
 pub async fn update_balance(
     provider: &RootProviderHttp,
-    provider_url: &str,
     token: Address,
     holder: Address,
     new_bal: U256,
@@ -59,43 +58,33 @@ pub async fn update_balance(
     lang_str: String,
 ) -> Result<U256> {
     let map_loc = erc20_topup::EvmLanguage::from_str(&lang_str)?.mapping_loc(slot, holder);
-    update_storage(&provider_url, storage_contract, map_loc.into(), new_bal.into()).await?;
+    update_storage(&provider.client(), storage_contract, map_loc.into(), new_bal.into()).await?;
     let reflected_bal = call_balanceof(&provider, token, holder).await?;
     Ok(reflected_bal.into())
 }
 
-pub async fn update_storage(
-    provider_url: &str, 
+pub async fn update_storage<T>(
+    client: &ClientRef<'_, T>, 
     contract: Address,
     slot: U256,
     value: B256
-) -> Result<()> {
-    // todo: update this once alloy's client supports setStorageAt return
-    // client.request(
-    //     "hardhat_setStorageAt", // Anvil has hardhat prefix as alias
-    //     (contract, slot, value)
-    // ).await.map_err(|e| { 
-    //     eyre::eyre!(format!("Storage update failed: {e:?}"))
-    // })
-    let rpc_request = r#"{
-        "jsonrpc": "2.0",
-        "method": "hardhat_setStorageAt",
-        "params": [
-            ""#.to_owned() + &format!("{contract:}") + r#"",
-            ""# + &format!("{slot:}") + r#"",
-            ""# + &format!("{value:}") + r#""
-        ],
-        "id": 1
-    }"#;
-    let response = reqwest::Client::new()
-        .post(provider_url)
-        .body(rpc_request)
-        .header("Content-Type", "application/json")
-        .send()
-        .await?;
-    let response = response.json::<jsonrpc::Response>().await?;
-    response.check_error()
+) -> Result<()> 
+where T: Transport + Clone
+{
+    client
+        .request(
+            "anvil_setStorageAt", // Anvil has hardhat prefix as alias
+            (contract, slot, value)
+        )
+        .await
         .map_err(|e| eyre::eyre!(format!("Storage update failed: {e:?}")))
+        .and_then(|r| 
+            if r {
+                Ok(())
+            } else {
+                Err(eyre::eyre!("Did not update storage"))
+            }
+        )
 }
 
 fn http_provider_from_url(url: &str) -> RootProviderHttp {
@@ -180,6 +169,7 @@ fn bytes_to_u8(val: Bytes) -> u8 {
 mod tests {
     use super::*;
     use std::str::FromStr;
+    use alloy::node_bindings::Anvil;
 
     #[tokio::test]
     async fn test_token_dec_to_fixed() -> Result<()> {
@@ -192,6 +182,38 @@ mod tests {
         let fix_amount = token_dec_to_fixed(&provider, token, dec_amount).await?;
 
         assert_eq!(fix_amount, expected);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_set_storage() -> Result<()> {
+        let anvil = Anvil::new().fork("https://arb1.arbitrum.io/rpc").spawn();
+        let provider = RootProviderHttp::new_http(anvil.endpoint_url());
+
+        let desired_bal = U256::from(100);
+        let token = Address::from_str("0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0")?;
+        let holder = Address::from_str("0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326")?;
+
+        let map_loc = erc20_topup::EvmLanguage::Solidity.mapping_loc(
+            B256::from(U256::wrapping_from(0x33)),
+            holder,
+        );
+
+        update_storage(
+            &provider.client(),
+            token,
+            map_loc.into(),
+            B256::from(desired_bal),
+        ).await?;
+
+        let balance = call_balanceof(
+            &provider,
+            token,
+            holder,
+        ).await?;
+
+        assert_eq!(balance, U256::from(100));
+
         Ok(())
     }
 
