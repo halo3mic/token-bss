@@ -4,7 +4,6 @@ use alloy::{
     rpc::types::trace::geth::{
         GethDefaultTracingOptions, 
         GethDebugTracingOptions, 
-        GethDebugTracerConfig,
         DefaultFrame, 
         GethTrace,
     },
@@ -16,37 +15,25 @@ pub async fn default_trace_call(
     call_request: TransactionRequest, 
     block: Option<BlockNumberOrTag>
 ) -> Result<DefaultFrame> {
-    let default_tracing_opt = GethDefaultTracingOptions {
-        disable_stack: Some(false),
-        disable_memory: Some(false),
-        enable_memory: Some(true),
-        disable_return_data: None,
-        enable_return_data: None,
-        disable_storage: None,
-        debug: None,
-        limit: None,
-    };
-    let tracing_options = GethDebugTracingOptions {
-        config: default_tracing_opt,
-        tracer_config: GethDebugTracerConfig::default(),
-        tracer: None,
-        timeout: None,
-    };
+    let mut tracing_options = GethDebugTracingOptions::default();
+    tracing_options.config = GethDefaultTracingOptions::default()
+        .with_disable_memory(false)
+        .with_enable_memory(true)
+        .with_disable_stack(false);
 
-    let block = block.unwrap_or(BlockNumberOrTag::Latest);
     let response = provider.debug_trace_call(
         call_request, 
-        block, 
+        block.unwrap_or(BlockNumberOrTag::Latest), 
         tracing_options,
     ).await?;
 
-    if let GethTrace::Default(trace) = response {
-        if trace.failed {
+    match response {
+        GethTrace::Default(trace) if trace.failed => {
             Err(eyre::eyre!("traceCall failed"))
-        } else {
+        },
+        GethTrace::Default(trace) if !trace.failed => {
             Ok(trace)
-        }
-    } else {
-        Err(eyre::eyre!("Only default traces supported"))
+        },
+        _ => Err(eyre::eyre!("Only default traces supported")),
     }
 }
