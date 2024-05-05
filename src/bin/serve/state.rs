@@ -97,7 +97,7 @@ impl FromStr for Chain {
         match s {
             "ethereum" | "eth" => Ok(Chain::Ethereum),
             "arbitrum" | "arb" => Ok(Chain::Arbitrum),
-            "optimism" | "opt" => Ok(Chain::Optimism),
+            // "optimism" | "opt" => Ok(Chain::Optimism),
             "avalanche" | "avax" => Ok(Chain::Avalanche),
             _ => Err(eyre::eyre!("Invalid chain")),
         }
