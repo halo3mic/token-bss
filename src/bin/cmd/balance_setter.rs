@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use reqwest::Client;
 use alloy::{
-    rpc::types::eth::{TransactionRequest, BlockId},
+    rpc::types::eth::TransactionRequest,
     rpc::client::ClientRef,
     transports::{http::Http, Transport},
     providers::{Provider, RootProvider},
@@ -98,7 +98,7 @@ pub async fn call_balanceof(
     holder: Address,
 ) -> Result<U256> {
     let call_request = balanceof_call_req(holder, token)?;
-    let balance = provider.call(&call_request, BlockId::latest()).await?;
+    let balance = provider.call(&call_request).await?;
     let balance = bytes_to_u256(balance);
     Ok(balance)
 }
@@ -135,7 +135,7 @@ async fn token_decimals(
     let tx_req = TransactionRequest::default()
         .to(token)
         .with_input(Bytes::from_str("0x313ce567")?);
-    let dec_bytes = provider.call(&tx_req, BlockId::latest()).await?;
+    let dec_bytes = provider.call(&tx_req).await?;
     let dec = bytes_to_u8(dec_bytes);
     Ok(dec)
 }

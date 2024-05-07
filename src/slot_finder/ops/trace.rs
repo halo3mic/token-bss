@@ -1,11 +1,10 @@
 use crate::common::*;
 use alloy::{
-    providers::debug::DebugApi,
+    providers::ext::DebugApi,
     rpc::types::trace::geth::{
-        GethDefaultTracingOptions, 
-        GethDebugTracingOptions, 
-        DefaultFrame, 
-        GethTrace,
+        DefaultFrame, GethDebugTracingOptions, 
+        GethDefaultTracingOptions, GethTrace,
+        GethDebugTracingCallOptions,
     },
 };
 
@@ -20,11 +19,13 @@ pub async fn default_trace_call(
         .with_disable_memory(false)
         .with_enable_memory(true)
         .with_disable_stack(false);
+    let trace_call_opt = GethDebugTracingCallOptions::default()
+        .with_tracing_options(GethDebugTracingOptions::default());
 
     let response = provider.debug_trace_call(
         call_request, 
         block.unwrap_or(BlockNumberOrTag::Latest), 
-        tracing_options,
+        trace_call_opt,
     ).await?;
 
     match response {

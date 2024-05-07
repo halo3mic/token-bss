@@ -14,7 +14,7 @@ pub async fn call_request(
     provider: &RootProviderHttp,
     call_request: &TransactionRequest,
 ) -> Result<U256> {
-    let balance = provider.call(call_request, BlockId::latest()).await?;
+    let balance = provider.call(call_request).await?;
     let balance = utils::bytes_to_u256(balance);
     Ok(balance)
 }
@@ -34,11 +34,7 @@ pub async fn call_request_with_storage_overrides(
     let state_override: HashMap<_, _> = 
         [(storage_contract, account_override)].into_iter().collect();
 
-    let bal = provider.call_with_overrides(
-        call_request, 
-        BlockId::latest(), 
-        state_override
-    ).await?;
+    let bal = provider.call(call_request).overrides(&state_override).await?;
     Ok(utils::bytes_to_u256(bal))
 }
 
