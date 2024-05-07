@@ -16,27 +16,28 @@ use eyre::Result;
 type RootProviderHttp = RootProvider<Http<Client>>;
 
 
-pub async fn set_balance(
-    provider_url: &str, 
+pub async fn set_balance<P, T>(
+    provider: &P, 
     token: Address, 
     holder: Address,
     target_balance: f64, 
     slot_info: Option<(Address, B256, f64, String)>
-) -> Result<U256> {
+) -> Result<U256> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let (contract, slot, _update_ratio, lang) = match slot_info {
         Some(slot_info) => slot_info,
         None => {
             erc20_topup::find_slot(
-                &provider_url, 
+                provider, 
                 token,
                 Some(holder), 
             ).await?
         }
     };
-    let provider = http_provider_from_url(provider_url);
-    let target_bal_fixed = token_dec_to_fixed(&provider, token, target_balance).await?;
+    let target_bal_fixed = token_dec_to_fixed(provider, token, target_balance).await?;
     let resulting_balance = update_balance(
-        &provider,
+        provider,
         token, 
         holder,
         target_bal_fixed,
@@ -48,15 +49,17 @@ pub async fn set_balance(
     Ok(resulting_balance)
 }
 
-pub async fn update_balance(
-    provider: &RootProviderHttp,
+pub async fn update_balance<P, T>(
+    provider: &P,
     token: Address,
     holder: Address,
     new_bal: U256,
     storage_contract: Address,
     slot: B256,
     lang_str: String,
-) -> Result<U256> {
+) -> Result<U256> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let map_loc = erc20_topup::EvmLanguage::from_str(&lang_str)?.mapping_loc(slot, holder);
     update_storage(&provider.client(), storage_contract, map_loc.into(), new_bal.into()).await?;
     let reflected_bal = call_balanceof(&provider, token, holder).await?;
@@ -92,11 +95,13 @@ fn http_provider_from_url(url: &str) -> RootProviderHttp {
 }
 
 // todo: reuse from slot_finder
-pub async fn call_balanceof(
-    provider: &RootProviderHttp,
+pub async fn call_balanceof<P, T>(
+    provider: &P,
     token: Address,
     holder: Address,
-) -> Result<U256> {
+) -> Result<U256> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let call_request = balanceof_call_req(holder, token)?;
     let balance = provider.call(&call_request).await?;
     let balance = bytes_to_u256(balance);
@@ -119,19 +124,23 @@ fn balanceof_input_data(holder: Address) -> Result<Bytes> {
     Ok(data)
 }
 
-pub async fn token_dec_to_fixed(
-    provider: &RootProviderHttp,
+pub async fn token_dec_to_fixed<P, T>(
+    provider: &P,
     token: Address,
     amount: f64,
-) -> Result<U256> {
+) -> Result<U256> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let dec = token_decimals(provider, token).await?;
     dec_to_fixed(amount, dec)
 }
 
-async fn token_decimals(
-    provider: &RootProviderHttp,
+async fn token_decimals<P, T>(
+    provider: &P,
     token: Address,
-) -> Result<u8> {
+) -> Result<u8> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let tx_req = TransactionRequest::default()
         .to(token)
         .with_input(Bytes::from_str("0x313ce567")?);

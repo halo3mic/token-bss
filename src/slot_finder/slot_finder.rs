@@ -11,20 +11,24 @@ use crate::common::*;
 // todo: use a struct
 type SlotOutput = (Address, B256, f64, String);
 
-pub async fn find_balance_slots_and_update_ratio(
-    provider: &RootProviderHttp,
+pub async fn find_balance_slots_and_update_ratio<P, T>(
+    provider: &P,
     holder: Address, 
     token: Address,
-) -> Result<SlotOutput> {
+) -> Result<SlotOutput> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let slots = find_balance_slots(provider, holder, token).await?;
     closest_slot(provider, token, holder, slots).await
 }
 
-pub async fn find_balance_slots(
-    provider: &RootProviderHttp,
+pub async fn find_balance_slots<P, T, N>(
+    provider: &P,
     holder: Address,
     token: Address,
-) -> Result<Vec<(Address, B256, EvmLanguage)>> {
+) -> Result<Vec<(Address, B256, EvmLanguage)>> 
+    where P: Provider<T, N>, T: Transport + Clone, N: Network
+{
     let tx_request = token::balanceof_call_req(holder, token)?;
     let response = trace::default_trace_call(provider, tx_request, None).await?;
     let matches = TraceParser::parse(response.struct_logs, token, holder)?;
@@ -32,12 +36,14 @@ pub async fn find_balance_slots(
 }
 
 // Note this would choose 0 over 2
-async fn closest_slot(
-    provider: &RootProviderHttp,
+async fn closest_slot<P, T>(
+    provider: &P,
     token: Address,
     holder: Address,
     slots: Vec<(Address, B256, EvmLanguage)>
-) -> Result<SlotOutput, eyre::Error> {
+) -> Result<SlotOutput, eyre::Error> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let d_one = |x: f64| ((x - 1.0).abs() * 100.) as u8;
     let future_results = join_all(slots.into_iter()
         .map(|(c, s, la)| async move {
@@ -55,14 +61,16 @@ async fn closest_slot(
 
 // todo: too many params
 // todo: more suiting name
-async fn slot_update_to_bal_ratio(
-    provider: &RootProviderHttp, 
+async fn slot_update_to_bal_ratio<P, T>(
+    provider: &P, 
     token: Address,
     storage_contract: Address,
     slot: B256,
     holder: Address,
     lang: EvmLanguage,
-) -> Result<f64> {
+) -> Result<f64> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let new_slot_val = U256::from(rand::random::<u128>()); // todo: In scenario where this is excatly the same as the current balance it fails
     let map_loc = lang.mapping_loc(slot, holder);
     let call_request = token::balanceof_call_req(holder, token)?;
@@ -88,12 +96,12 @@ async fn slot_update_to_bal_ratio(
 
 #[cfg(test)]
 mod tests {
-    use alloy::node_bindings::{Anvil, AnvilInstance};
+    use alloy::{node_bindings::{Anvil, AnvilInstance}, providers::ReqwestProvider};
     use super::*;
 
-    pub fn spawn_anvil_provider(fork_url: Option<&str>) -> Result<(RootProviderHttp, AnvilInstance)> {
+    pub fn spawn_anvil_provider(fork_url: Option<&str>) -> Result<(ReqwestProvider, AnvilInstance)> {
         let anvil_fork = spawn_anvil(fork_url);
-        let provider = RootProviderHttp::new_http(anvil_fork.endpoint().parse()?);
+        let provider = ReqwestProvider::new_http(anvil_fork.endpoint().parse()?);
     
         Ok((provider, anvil_fork))
     }

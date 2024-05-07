@@ -10,22 +10,26 @@ use crate::common::*;
 const BALANCEOF_4BYTE: &str = "0x70a08231";
 const CALL_GAS_LIMIT: u128 = 200_000;
 
-pub async fn call_request(
-    provider: &RootProviderHttp,
+pub async fn call_request<P, T>(
+    provider: &P,
     call_request: &TransactionRequest,
-) -> Result<U256> {
+) -> Result<U256> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let balance = provider.call(call_request).await?;
     let balance = utils::bytes_to_u256(balance);
     Ok(balance)
 }
 
-pub async fn call_request_with_storage_overrides(
-    provider: &RootProviderHttp,
+pub async fn call_request_with_storage_overrides<P, T>(
+    provider: &P,
     call_request: &TransactionRequest,
     storage_contract: Address,
     map_loc: B256,
     new_slot_val: U256,
-) -> Result<U256> {
+) -> Result<U256> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let state_diff: HashMap<_, _> = [(map_loc, new_slot_val)].into_iter().collect();
     let account_override = AccountOverride {
         state_diff: Some(state_diff),

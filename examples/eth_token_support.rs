@@ -1,4 +1,5 @@
 use alloy::node_bindings::{Anvil, AnvilInstance};
+use alloy::providers::ReqwestProvider;
 use alloy::primitives::Address;
 use serde::Deserialize;
 use eyre::Result;
@@ -20,10 +21,11 @@ async fn main() -> Result<()> {
     let ethereum_tokens = coingecko_all_tokens("ethereum".to_string()).await?;
     let rpc_endpoint = env_var("ETH_RPC_URL")?;
     let anvil = spawn_anvil(Some(&rpc_endpoint));
+    let provider = ReqwestProvider::new_http(anvil.endpoint().parse()?);
     
     for (symbol, token) in ethereum_tokens {
         println!("Checking {symbol}({token:?})");
-        match erc20_topup::find_slot(&anvil.endpoint(), token, None).await {
+        match erc20_topup::find_slot(&provider, token, None).await {
             Ok((contract, slot, update_ratio, lang)) => {
                 println!("{symbol}({token:?}): {contract:?}({lang}) - {slot:?} / ΔR: {update_ratio}")
             }

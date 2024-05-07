@@ -1,4 +1,6 @@
 use alloy::primitives::{Address, U256};
+use alloy::providers::Provider;
+use alloy::transports::Transport;
 use serde::{Serialize, Deserialize};
 use std::time::Instant;
 use tokio::time::{timeout, Duration};
@@ -143,11 +145,11 @@ enum InfoSource {
     Database,
 }
 
-pub async fn search_handler<T>(
-    State(app_state): State<AppState<T>>,
+pub async fn search_handler<P, T, H>(
+    State(app_state): State<AppState<P, T, H>>,
     Path((chain_str, token_str)): Path<(String, String)>
 ) -> Result<Json<Response>, AppError> 
-    where T: Sync + Send + Clone + 'static
+    where P: Provider<T>, T: Transport + Clone, H: Sync + Send + Clone + 'static
 {
     let rtime0 = Instant::now();
     let request_id = uuid::Uuid::new_v4().as_u128().to_string();
@@ -184,11 +186,11 @@ pub async fn search_handler<T>(
     res.map(|(res, _)| res)
 }
 
-async fn _search_handler<T>(
-    State(app_state): State<AppState<T>>,
+async fn _search_handler<P, T, H>(
+    State(app_state): State<AppState<P, T, H>>,
     Path((chain_str, token_str)): Path<(String, String)>
 ) -> Result<(Json<Response>, InfoSource), AppError> 
-    where T: Sync + Send + Clone + 'static
+    where P: Provider<T>, T: Transport + Clone, H: Sync + Send + Clone + 'static
 {
     let chain = chain_str.parse::<Chain>()
         .map_err(|_| AppError::UserError(UserError::ChainNotFound))?;
@@ -206,11 +208,11 @@ async fn _search_handler<T>(
         }
     }
 
-    let endpoint = &app_state.providers
+    let provider = &app_state.providers
         .get(&chain)
         .ok_or(AppError::UserError(UserError::ProviderNotFound))?
-        .endpoint;
-    let response = erc20_topup::find_slot(endpoint, token, None).await
+        .provider;
+    let response = erc20_topup::find_slot(provider, token, None).await
         .map_err(|err| {
             if err.to_string().contains("No valid slots found") {
                 if let Some(db_conn) = &app_state.db_connection {

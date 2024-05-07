@@ -5,6 +5,8 @@ mod state;
 mod config;
 mod db;
 
+use alloy::providers::ReqwestProvider;
+use alloy::network::Ethereum;
 use std::sync::Arc;
 use tracing::info;
 use eyre::Result;
@@ -23,6 +25,7 @@ async fn main() -> Result<()> {
     }
 
     let mut app_providers = state::AppProviders::new();
+    // todo: move this somewhere else
     for chain_config in configs.chain_configs {
         let (endpoint, handler) = match chain_config.rpc_url {
             RpcUrl::Primary(url) => (url, None),
@@ -36,7 +39,8 @@ async fn main() -> Result<()> {
             },
         };
         info!("Added provider for chain: {:?} with endpoint {endpoint:?}", chain_config.chain);
-        app_providers.set_provider(chain_config.chain, endpoint, handler);
+        let provider = ReqwestProvider::<Ethereum>::new_http(endpoint.parse()?); // todo: move this somewhere else
+        app_providers.set_provider(chain_config.chain, provider, handler);
     }
 
     let redis_conn = configs.redis_config.map(|c| c.try_into()).transpose()?;

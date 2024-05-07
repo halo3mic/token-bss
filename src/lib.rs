@@ -6,24 +6,19 @@ mod slot_finder;
 pub use slot_finder::EvmLanguage;
 use common::*;
 
-pub async fn find_slot(
-    provider_url: &str, 
+pub async fn find_slot<P, T>(
+    provider: &P, 
     token: Address, 
     holder: Option<Address>
-) -> Result<(Address, B256, f64, String)> {
-    let provider = http_provider_from_url(provider_url);
+) -> Result<(Address, B256, f64, String)> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let holder = holder.unwrap_or_else(default_holder);
-
     slot_finder::find_balance_slots_and_update_ratio(
         &provider, 
         holder, 
         token
     ).await
-}
-
-// todo: instead of url accept Provider so IPC can be used
-fn http_provider_from_url(url: &str) -> RootProviderHttp {
-    RootProviderHttp::new_http(url.parse().unwrap())
 }
 
 // Avoid zero address for holder

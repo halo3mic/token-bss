@@ -1,4 +1,6 @@
 use alloy::{
+    providers::ReqwestProvider,
+    network::Ethereum,
     node_bindings::{Anvil, AnvilInstance},
     primitives::{Address, B256},
 };
@@ -49,4 +51,8 @@ pub fn format_find_slot_out(token: Address, res: Result<(Address, B256, f64, Str
             }
         },
     }
+}
+
+pub fn http_provider_from_url(url: &str) -> ReqwestProvider {
+    ReqwestProvider::<Ethereum>::new_http(url.parse().unwrap())
 }

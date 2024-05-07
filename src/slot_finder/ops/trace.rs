@@ -9,11 +9,13 @@ use alloy::{
 };
 
 
-pub async fn default_trace_call(
-    provider: &RootProviderHttp,
+pub async fn default_trace_call<P, T, N>(
+    provider: &P,
     call_request: TransactionRequest, 
     block: Option<BlockNumberOrTag>
-) -> Result<DefaultFrame> {
+) -> Result<DefaultFrame> 
+    where P: Provider<T, N>, T: Transport + Clone, N: Network
+{
     let mut tracing_options = GethDebugTracingOptions::default();
     tracing_options.config = GethDefaultTracingOptions::default()
         .with_disable_memory(false)
