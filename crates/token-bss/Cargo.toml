@@ -1,0 +1,15 @@
+[package]
+name = "token-bss"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+alloy.workspace = true
+eyre.workspace = true
+tokio.workspace = true
+hex = { version = "*", features = ["serde"] }
+futures = "0.3.28"
+rand = "0.8.5"
+
+[dev-dependencies]
+dotenv.workspace = true

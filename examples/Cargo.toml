@@ -1,0 +1,18 @@
+[package]
+name = "examples"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+token-bss.workspace = true
+alloy.workspace = true
+eyre.workspace = true
+tokio.workspace = true
+dotenv.workspace = true
+serde = { version = "1.0.188", features = ["derive"] }
+reqwest = "0.12.4"
+
+
+[[example]]
+name = "eth_token_support"
+path = "eth_token_support.rs"
