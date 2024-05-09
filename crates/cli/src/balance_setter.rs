@@ -1,42 +1,41 @@
 use std::str::FromStr;
-use reqwest::Client;
 use alloy::{
-    rpc::types::eth::{TransactionRequest, BlockId},
-    transports::http::Http,
-    providers::{Provider, RootProvider},
+    rpc::types::eth::TransactionRequest,
+    rpc::client::ClientRef,
+    transports::Transport,
+    providers::Provider,
     network::TransactionBuilder,
     primitives::{
         Address, B256, U256, Bytes,
-        utils as alloy_utils,
+        utils as alloy_utils
     },
 };
 use eyre::Result;
 
-type RootProviderHttp = RootProvider<Http<Client>>;
 
-
-pub async fn set_balance(
-    provider_url: &str, 
+pub async fn set_balance<P, T>(
+    provider: &P, 
     token: Address, 
     holder: Address,
     target_balance: f64, 
     slot_info: Option<(Address, B256, f64, String)>
-) -> Result<U256> {
+) -> Result<U256> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let (contract, slot, _update_ratio, lang) = match slot_info {
         Some(slot_info) => slot_info,
         None => {
-            erc20_topup::find_slot(
-                &provider_url, 
+            token_bss::find_slot(
+                provider, 
                 token,
                 Some(holder), 
+                None,
             ).await?
         }
     };
-    let provider = http_provider_from_url(provider_url);
-    let target_bal_fixed = token_dec_to_fixed(&provider, token, target_balance).await?;
+    let target_bal_fixed = token_dec_to_fixed(provider, token, target_balance).await?;
     let resulting_balance = update_balance(
-        &provider,
-        provider_url,
+        provider,
         token, 
         holder,
         target_bal_fixed,
@@ -48,68 +47,57 @@ pub async fn set_balance(
     Ok(resulting_balance)
 }
 
-pub async fn update_balance(
-    provider: &RootProviderHttp,
-    provider_url: &str,
+pub async fn update_balance<P, T>(
+    provider: &P,
     token: Address,
     holder: Address,
     new_bal: U256,
     storage_contract: Address,
     slot: B256,
     lang_str: String,
-) -> Result<U256> {
-    let map_loc = erc20_topup::EvmLanguage::from_str(&lang_str)?.mapping_loc(slot, holder);
-    update_storage(&provider_url, storage_contract, map_loc.into(), new_bal.into()).await?;
+) -> Result<U256> 
+    where P: Provider<T>, T: Transport + Clone
+{
+    let map_loc = token_bss::EvmLanguage::from_str(&lang_str)?.mapping_loc(slot, holder);
+    update_storage(&provider.client(), storage_contract, map_loc.into(), new_bal.into()).await?;
     let reflected_bal = call_balanceof(&provider, token, holder).await?;
     Ok(reflected_bal.into())
 }
 
-pub async fn update_storage(
-    provider_url: &str, 
+pub async fn update_storage<T>(
+    client: &ClientRef<'_, T>, 
     contract: Address,
     slot: U256,
     value: B256
-) -> Result<()> {
-    // todo: update this once alloy's client supports setStorageAt return
-    // client.request(
-    //     "hardhat_setStorageAt", // Anvil has hardhat prefix as alias
-    //     (contract, slot, value)
-    // ).await.map_err(|e| { 
-    //     eyre::eyre!(format!("Storage update failed: {e:?}"))
-    // })
-    let rpc_request = r#"{
-        "jsonrpc": "2.0",
-        "method": "hardhat_setStorageAt",
-        "params": [
-            ""#.to_owned() + &format!("{contract:}") + r#"",
-            ""# + &format!("{slot:}") + r#"",
-            ""# + &format!("{value:}") + r#""
-        ],
-        "id": 1
-    }"#;
-    let response = reqwest::Client::new()
-        .post(provider_url)
-        .body(rpc_request)
-        .header("Content-Type", "application/json")
-        .send()
-        .await?;
-    let response = response.json::<jsonrpc::Response>().await?;
-    response.check_error()
+) -> Result<()> 
+where T: Transport + Clone
+{
+    client
+        .request(
+            "anvil_setStorageAt", // Anvil has hardhat prefix as alias
+            (contract, slot, value)
+        )
+        .await
         .map_err(|e| eyre::eyre!(format!("Storage update failed: {e:?}")))
-}
-
-fn http_provider_from_url(url: &str) -> RootProviderHttp {
-    RootProviderHttp::new_http(url.parse().unwrap())
+        .and_then(|r| 
+            if r {
+                Ok(())
+            } else {
+                Err(eyre::eyre!("Did not update storage"))
+            }
+        )
 }
 
 // todo: reuse from slot_finder
-pub async fn call_balanceof(
-    provider: &RootProviderHttp,
+pub async fn call_balanceof<P, T>(
+    provider: &P,
     token: Address,
     holder: Address,
-) -> Result<U256> {
+) -> Result<U256> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let call_request = balanceof_call_req(holder, token)?;
-    let balance = provider.call(&call_request, BlockId::latest()).await?;
+    let balance = provider.call(&call_request).await?;
     let balance = bytes_to_u256(balance);
     Ok(balance)
 }
@@ -130,23 +118,27 @@ fn balanceof_input_data(holder: Address) -> Result<Bytes> {
     Ok(data)
 }
 
-pub async fn token_dec_to_fixed(
-    provider: &RootProviderHttp,
+pub async fn token_dec_to_fixed<P, T>(
+    provider: &P,
     token: Address,
     amount: f64,
-) -> Result<U256> {
+) -> Result<U256> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let dec = token_decimals(provider, token).await?;
     dec_to_fixed(amount, dec)
 }
 
-async fn token_decimals(
-    provider: &RootProviderHttp,
+async fn token_decimals<P, T>(
+    provider: &P,
     token: Address,
-) -> Result<u8> {
+) -> Result<u8> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let tx_req = TransactionRequest::default()
         .to(token)
         .with_input(Bytes::from_str("0x313ce567")?);
-    let dec_bytes = provider.call(&tx_req, BlockId::latest()).await?;
+    let dec_bytes = provider.call(&tx_req).await?;
     let dec = bytes_to_u8(dec_bytes);
     Ok(dec)
 }
@@ -180,6 +172,9 @@ fn bytes_to_u8(val: Bytes) -> u8 {
 mod tests {
     use super::*;
     use std::str::FromStr;
+    use alloy::node_bindings::Anvil;
+    use alloy::providers::ReqwestProvider;
+
 
     #[tokio::test]
     async fn test_token_dec_to_fixed() -> Result<()> {
@@ -188,10 +183,42 @@ mod tests {
         let token = Address::from_str("0x912CE59144191C1204E64559FE8253a0e49E6548")?;
         let expected = alloy_utils::parse_ether(&dec_amount.to_string())?.into();
 
-        let provider = RootProviderHttp::new_http(provider_url.parse()?);
+        let provider = ReqwestProvider::new_http(provider_url.parse()?);
         let fix_amount = token_dec_to_fixed(&provider, token, dec_amount).await?;
 
         assert_eq!(fix_amount, expected);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_set_storage() -> Result<()> {
+        let anvil = Anvil::new().fork("https://arb1.arbitrum.io/rpc").spawn();
+        let provider = ReqwestProvider::new_http(anvil.endpoint_url());
+
+        let desired_bal = U256::from(100);
+        let token = Address::from_str("0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0")?;
+        let holder = Address::from_str("0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326")?;
+
+        let map_loc = token_bss::EvmLanguage::Solidity.mapping_loc(
+            B256::from(U256::wrapping_from(0x33)),
+            holder,
+        );
+
+        update_storage(
+            &provider.client(),
+            token,
+            map_loc.into(),
+            B256::from(desired_bal),
+        ).await?;
+
+        let balance = call_balanceof(
+            &provider,
+            token,
+            holder,
+        ).await?;
+
+        assert_eq!(balance, U256::from(100));
+
         Ok(())
     }
 

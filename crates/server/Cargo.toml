@@ -1,0 +1,27 @@
+[package]
+name = "token-bss-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+token-bss.workspace = true
+alloy.workspace = true
+eyre.workspace = true
+tokio.workspace = true
+dotenv.workspace = true
+
+axum = { version = "0.6.20", features = ["headers"] }
+serde = "1.0.188"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+redis = "0.25.3"
+serde_json = "1.0.108"
+poor-mans-tracer = { git = "https://github.com/halo3mic/poor-mans-tracer", rev = "fd927f1" }
+reqwest = "0.12.4"
+
+[dependencies.uuid]
+version = "1.8.0"
+features = [
+    "v4",
+    "fast-rng",
+]

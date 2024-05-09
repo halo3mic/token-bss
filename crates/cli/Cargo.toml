@@ -1,0 +1,12 @@
+[package]
+name = "token-bss-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+token-bss.workspace = true
+alloy.workspace = true
+eyre.workspace = true
+tokio.workspace = true
+
+clap = { version = "4.3.17", features = ["derive"] }

@@ -39,5 +39,5 @@ done
 a=$(curl $tokenlist_url | jq -r '.tokens[] | .address' | head -n "$num_addresses" |  tr '\n' ',')
 echo $((${#a} / 43)) "tokens found"
 echo "Token,Contract,Slot,UpdateRatio,Language,Error" > "$output_file"
-./target/release/erc20-topup find-storage-slot --unformatted --fork-rpc-url "$fork_rpc_url" "$a" >> "$output_file"
+./target/release/token-bss find-storage-slot --unformatted --fork-rpc-url "$fork_rpc_url" "$a" >> "$output_file"
 echo "Completed! ✨"

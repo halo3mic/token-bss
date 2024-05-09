@@ -7,37 +7,45 @@ use super::{
 };
 use crate::common::*;
 
-
+// todo: make a builder here
 // todo: use a struct
 type SlotOutput = (Address, B256, f64, String);
 
-pub async fn find_balance_slots_and_update_ratio(
-    provider: &RootProviderHttp,
+pub async fn find_balance_slots_and_update_ratio<'a, P, T>(
+    provider: &P,
     holder: Address, 
     token: Address,
-) -> Result<SlotOutput> {
-    let slots = find_balance_slots(provider, holder, token).await?;
+    trace_fn: Option<TraceFn>,
+) -> Result<SlotOutput> 
+    where P: Provider<T>, T: Transport + Clone
+{
+    let slots = find_balance_slots(provider, holder, token, trace_fn).await?;
     closest_slot(provider, token, holder, slots).await
 }
 
-pub async fn find_balance_slots(
-    provider: &RootProviderHttp,
+pub async fn find_balance_slots<'a, P, T, N>(
+    provider: &P,
     holder: Address,
     token: Address,
-) -> Result<Vec<(Address, B256, EvmLanguage)>> {
+    trace_fn: Option<TraceFn>,
+) -> Result<Vec<(Address, B256, EvmLanguage)>> 
+    where P: Provider<T, N>, T: Transport + Clone, N: Network
+{
     let tx_request = token::balanceof_call_req(holder, token)?;
-    let response = trace::default_trace_call(provider, tx_request, None).await?;
+    let response = trace::default_trace_call(provider, tx_request, None, trace_fn).await?;
     let matches = TraceParser::parse(response.struct_logs, token, holder)?;
     Ok(matches)
 }
 
 // Note this would choose 0 over 2
-async fn closest_slot(
-    provider: &RootProviderHttp,
+async fn closest_slot<P, T>(
+    provider: &P,
     token: Address,
     holder: Address,
     slots: Vec<(Address, B256, EvmLanguage)>
-) -> Result<SlotOutput, eyre::Error> {
+) -> Result<SlotOutput, eyre::Error> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let d_one = |x: f64| ((x - 1.0).abs() * 100.) as u8;
     let future_results = join_all(slots.into_iter()
         .map(|(c, s, la)| async move {
@@ -55,14 +63,16 @@ async fn closest_slot(
 
 // todo: too many params
 // todo: more suiting name
-async fn slot_update_to_bal_ratio(
-    provider: &RootProviderHttp, 
+async fn slot_update_to_bal_ratio<P, T>(
+    provider: &P, 
     token: Address,
     storage_contract: Address,
     slot: B256,
     holder: Address,
     lang: EvmLanguage,
-) -> Result<f64> {
+) -> Result<f64> 
+    where P: Provider<T>, T: Transport + Clone
+{
     let new_slot_val = U256::from(rand::random::<u128>()); // todo: In scenario where this is excatly the same as the current balance it fails
     let map_loc = lang.mapping_loc(slot, holder);
     let call_request = token::balanceof_call_req(holder, token)?;
@@ -72,7 +82,7 @@ async fn slot_update_to_bal_ratio(
         &call_request,
         storage_contract,
         map_loc,
-        new_slot_val,
+        new_slot_val.into(),
     );
     let real_bal_future = token::call_request(provider, &call_request);
     let (override_bal, real_bal) = tokio::try_join!(override_bal_future, real_bal_future)?;
@@ -88,12 +98,12 @@ async fn slot_update_to_bal_ratio(
 
 #[cfg(test)]
 mod tests {
-    use alloy::node_bindings::{Anvil, AnvilInstance};
+    use alloy::{node_bindings::{Anvil, AnvilInstance}, providers::ReqwestProvider};
     use super::*;
 
-    pub fn spawn_anvil_provider(fork_url: Option<&str>) -> Result<(RootProviderHttp, AnvilInstance)> {
+    pub fn spawn_anvil_provider(fork_url: Option<&str>) -> Result<(ReqwestProvider, AnvilInstance)> {
         let anvil_fork = spawn_anvil(fork_url);
-        let provider = RootProviderHttp::new_http(anvil_fork.endpoint().parse()?);
+        let provider = ReqwestProvider::new_http(anvil_fork.endpoint().parse()?);
     
         Ok((provider, anvil_fork))
     }
@@ -121,7 +131,7 @@ mod tests {
         let token: Address = "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F".parse().unwrap();
         let holder: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 
-        let result = find_balance_slots(&provider, holder, token).await?;
+        let result = find_balance_slots(&provider, holder, token, None).await?;
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].0, "0x5b1b5fea1b99d83ad479df0c222f0492385381dd".parse::<Address>().unwrap());
@@ -155,7 +165,7 @@ mod tests {
         let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0xfE18be6b3Bd88A2D2A7f928d00292E7a9963CfC6".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
-        let result = find_balance_slots(&provider, holder, token).await?;
+        let result = find_balance_slots(&provider, holder, token, None).await?;
 
         assert_eq!(result.len(), 1);
         let (contract, slot, lang) = result[0];
@@ -177,7 +187,7 @@ mod tests {
         let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
-        let result = find_balance_slots(&provider, holder, token).await?;
+        let result = find_balance_slots(&provider, holder, token, None).await?;
 
         assert_eq!(result.len(), 1);
         let (contract, slot, lang) = result[0];
@@ -199,7 +209,7 @@ mod tests {
         let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0xb8b295df2cd735b15BE5Eb419517Aa626fc43cD5".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
-        let result = find_balance_slots(&provider, holder, token).await?;
+        let result = find_balance_slots(&provider, holder, token, None).await?;
 
         assert_eq!(result.len(), 1);
         let (contract, slot, lang) = result[0];
@@ -222,7 +232,7 @@ mod tests {
         let token: Address = "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
 
-        let result = find_balance_slots(&provider, holder, token).await?;
+        let result = find_balance_slots(&provider, holder, token, None).await?;
         let (contract, slot, lang) = result[0];
         let ratio = slot_update_to_bal_ratio(
             &provider, 
@@ -242,7 +252,7 @@ mod tests {
         let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0xf25c91c87e0b1fd9b4064af0f427157aab0193a7".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
-        let result = find_balance_slots(&provider, holder, token).await?;
+        let result = find_balance_slots(&provider, holder, token, None).await?;
 
         let (_c, s, r, _l) = closest_slot(&provider, token, holder, result).await?;
         
@@ -256,7 +266,7 @@ mod tests {
         let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0x5f7827fdeb7c20b443265fc2f40845b715385ff2".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
-        let result = find_balance_slots(&provider, holder, token).await?;
+        let result = find_balance_slots(&provider, holder, token, None).await?;
 
         let (_c, s, r, _l) = closest_slot(&provider, token, holder, result).await?;
         
@@ -270,10 +280,27 @@ mod tests {
         let (provider, _anvil_instance) = spawn_anvil_provider(Some(&rpc_endpoint()?))?;
         let token: Address = "0xB8C3B7A2A618C552C23B1E4701109a9E756Bab67".parse()?;
         let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
-        let result = find_balance_slots(&provider, holder, token).await?;
+        let result = find_balance_slots(&provider, holder, token, None).await?;
         let (_c, s, r, _l) = closest_slot(&provider, token, holder, result).await?;
         
         assert_eq!(s, B256::from(U256::from(3)));
+        assert_eq!(r, 1.0);
+        Ok(())
+    }
+
+    use alloy::network::Ethereum;
+
+    #[tokio::test]
+    async fn test_bal_storage_check_uni_arbitrum() -> Result<()> {
+        let rpc_endpoint = "https://arb1.arbitrum.io/rpc";
+        let (fork_provider, _anvil_instance) = spawn_anvil_provider(Some(rpc_endpoint))?;
+        let provider = ReqwestProvider::<Ethereum>::new_http(rpc_endpoint.parse()?);
+        let token: Address = "0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0".parse()?;
+        let holder: Address = "0xDAFEA492D9c6733ae3d56b7Ed1ADB60692c98Bc5".parse().unwrap();
+        let result = find_balance_slots(&fork_provider, holder, token, None).await?;
+        let (_c, s, r, _l) = closest_slot(&provider, token, holder, result).await?;
+        
+        assert_eq!(s, B256::from(U256::from(51)));
         assert_eq!(r, 1.0);
         Ok(())
     }

@@ -5,6 +5,7 @@ mod cmd;
 
 use cmd::{Cli, Commands};
 use tokio::task::JoinSet;
+use std::sync::Arc;
 use clap::Parser;
 use eyre::Result;
 use config::DEFAULT_RPC_URL;
@@ -42,6 +43,7 @@ async fn find_storage_slots(
 ) -> Result<()> {
     let tokens = utils::parse_tokens_str(tokens)?;
 
+    // todo: use poor-mans-tracer instead of spinning up anvil
     let (rpc_url, _anvil) = 
         if let Some(fork_rpc_url) = fork_rpc_url {
             let anvil = utils::spawn_anvil(Some(&fork_rpc_url));
@@ -51,10 +53,11 @@ async fn find_storage_slots(
         };
 
     // todo: consider rpc limit
+    let provider = Arc::new(utils::http_provider_from_url(&rpc_url));
     let mut task_set = tokens.into_iter().map(|token| {
-        let rpc_url = rpc_url.clone();
+        let provider = provider.clone();
         async move {
-            (token, erc20_topup::find_slot(&rpc_url, token, None).await)
+            (token, token_bss::find_slot(&provider, token, None, None).await)
         }
     }).collect::<JoinSet<_>>();
 
@@ -80,8 +83,9 @@ async fn set_balance(
         println!("Setting balance for token {token:?} and holder {holder:?} to {target_balance}");
     }
     let rpc_url = rpc_url.unwrap_or(DEFAULT_RPC_URL.to_string());
+    let provider = utils::http_provider_from_url(&rpc_url);
     let resulting_bal = balance_setter::set_balance(
-        &rpc_url,
+        &provider,
         token, 
         holder, 
         target_balance, 

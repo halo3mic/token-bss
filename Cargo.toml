@@ -1,61 +1,29 @@
-[package]
-name = "erc20-topup"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = [
+    "crates/*",
+    "examples/",
+]
+resolver = "2"
 
-[dependencies]
-clap = { version = "4.3.17", features = ["derive"], optional = true }
-alloy = { git = "https://github.com/alloy-rs/alloy", rev = "e7542d7", features = [
-    "contract",
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.76"
+license = "GPL-3.0"
+exclude = [ "examples/" ]
+
+[workspace.dependencies]
+token-bss = { path = "crates/token-bss" }
+
+alloy = { git = "https://github.com/alloy-rs/alloy", rev = "4316c68", features = [
     "network",
     "providers",
     "provider-http",
     "rpc-client",
     "rpc-types-eth",
     "rpc-types-trace",
-    "signers",
-    "signer-wallet",
-    "consensus",
-    "eips",
-    "serde",
     "node-bindings",
 ] }
 eyre = "0.6.12"
-futures = "0.3.28"
-hex = { version = "*", features = ["serde"] }
-rand = "0.8.5"
-serde_json = "1.0.108"
-tokio = { version = "1.32.0", features = ["full"] }
-reqwest = "0.12.4"
-jsonrpc = { version = "0.18.0", optional = true }
-axum = { version = "0.6.20", features = ["headers"] }
-serde = "1.0.188"
-dotenv = "0.15.0"
-tracing = "0.1.40"
-tracing-subscriber = "0.3.18"
-redis = "0.25.3"
-
-[dependencies.uuid]
-version = "1.8.0"
-features = [
-    "v4",
-    "fast-rng",
-]
-
-
-[dev-dependencies]
-reqwest = { version = "0.12.4", features = ["json"] }
-serde = "1.0.188"
 tokio = { version = "1.32.0", features = ["full"] }
 dotenv = "0.15.0"
-
-[features]
-cmd = ["clap", "jsonrpc"]
-
-[[bin]]         
-name = "cmd"
-required-features = ["cmd"] 
-
-# [[bin]]
-# name = "serve"
-# required-features = ["serve"]
