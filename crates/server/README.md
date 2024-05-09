@@ -4,7 +4,8 @@
 
 ### Env variables
 See `.env.example` for a list of required environment variables.
-**Note: The `.env` file should be placed in the root of the project!**
+
+Note: The `.env` file should be placed in the root of the project!
 
 
 ### Run your own
