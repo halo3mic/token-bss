@@ -26,7 +26,7 @@ pub async fn call_request_with_storage_overrides<P, T>(
     call_request: &TransactionRequest,
     storage_contract: Address,
     map_loc: B256,
-    new_slot_val: U256,
+    new_slot_val: B256,
 ) -> Result<U256> 
     where P: Provider<T>, T: Transport + Clone
 {

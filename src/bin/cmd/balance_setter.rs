@@ -1,10 +1,9 @@
 use std::str::FromStr;
-use reqwest::Client;
 use alloy::{
     rpc::types::eth::TransactionRequest,
     rpc::client::ClientRef,
-    transports::{http::Http, Transport},
-    providers::{Provider, RootProvider},
+    transports::Transport,
+    providers::Provider,
     network::TransactionBuilder,
     primitives::{
         Address, B256, U256, Bytes,
@@ -12,8 +11,6 @@ use alloy::{
     },
 };
 use eyre::Result;
-
-type RootProviderHttp = RootProvider<Http<Client>>;
 
 
 pub async fn set_balance<P, T>(
@@ -32,6 +29,7 @@ pub async fn set_balance<P, T>(
                 provider, 
                 token,
                 Some(holder), 
+                None,
             ).await?
         }
     };
@@ -88,10 +86,6 @@ where T: Transport + Clone
                 Err(eyre::eyre!("Did not update storage"))
             }
         )
-}
-
-fn http_provider_from_url(url: &str) -> RootProviderHttp {
-    RootProviderHttp::new_http(url.parse().unwrap())
 }
 
 // todo: reuse from slot_finder
@@ -179,6 +173,8 @@ mod tests {
     use super::*;
     use std::str::FromStr;
     use alloy::node_bindings::Anvil;
+    use alloy::providers::ReqwestProvider;
+
 
     #[tokio::test]
     async fn test_token_dec_to_fixed() -> Result<()> {
@@ -187,7 +183,7 @@ mod tests {
         let token = Address::from_str("0x912CE59144191C1204E64559FE8253a0e49E6548")?;
         let expected = alloy_utils::parse_ether(&dec_amount.to_string())?.into();
 
-        let provider = RootProviderHttp::new_http(provider_url.parse()?);
+        let provider = ReqwestProvider::new_http(provider_url.parse()?);
         let fix_amount = token_dec_to_fixed(&provider, token, dec_amount).await?;
 
         assert_eq!(fix_amount, expected);
@@ -197,7 +193,7 @@ mod tests {
     #[tokio::test]
     async fn test_set_storage() -> Result<()> {
         let anvil = Anvil::new().fork("https://arb1.arbitrum.io/rpc").spawn();
-        let provider = RootProviderHttp::new_http(anvil.endpoint_url());
+        let provider = ReqwestProvider::new_http(anvil.endpoint_url());
 
         let desired_bal = U256::from(100);
         let token = Address::from_str("0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0")?;

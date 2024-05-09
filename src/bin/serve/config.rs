@@ -12,7 +12,7 @@ pub struct Config {
     pub redis_config: Option<RedisConfig>,
     pub logging_enabled: bool,
     pub timeout_ms: u64,
-    pub anvil_config: AnvilConfig,
+    pub anvil_config: Option<AnvilConfig>,
 }
 
 pub struct ChainConfig {
@@ -96,15 +96,23 @@ impl Config {
             } else {
                 None
             };
-
-        let anvil_config = AnvilConfig {
-            cpu_per_sec: std::env::var("ANVIL_CPU_PER_SEC").ok()
-                .and_then(|s| s.parse::<u32>().ok()),
-            memory_limit: std::env::var("ANVIL_MEMORY_LIMIT").ok()
-                .and_then(|s| s.parse::<u32>().ok()),
-            timeout: std::env::var("ANVIL_TIMEOUT_MS").ok()
-                .and_then(|s| s.parse::<u32>().ok()),
-        };
+            
+        // Anvil config
+        let anvil_enabled = std::env::var("ANVIL_ENABLED").ok()
+            .map(|s| s == "1").unwrap_or(false);
+        let anvil_config = 
+            if anvil_enabled {
+                Some(AnvilConfig {
+                    cpu_per_sec: std::env::var("ANVIL_CPU_PER_SEC").ok()
+                        .and_then(|s| s.parse::<u32>().ok()),
+                    memory_limit: std::env::var("ANVIL_MEMORY_LIMIT").ok()
+                        .and_then(|s| s.parse::<u32>().ok()),
+                    timeout: std::env::var("ANVIL_TIMEOUT_MS").ok()
+                        .and_then(|s| s.parse::<u32>().ok()),
+                })
+            } else {
+                None
+            };
         
         let logging_enabled = std::env::var("LOGGING_ENABLED").ok()
             .map(|s| s == "1").unwrap_or(false);

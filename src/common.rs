@@ -1,3 +1,5 @@
+use alloy::rpc::types::eth::Header;
+use alloy::rpc::types::trace::geth::{GethTrace, GethDebugTracingCallOptions};
 
 pub use alloy::{
     primitives::{
@@ -11,3 +13,9 @@ pub use alloy::{
 };
 
 pub use eyre::Result;
+
+pub type TraceFn = Box<dyn Fn(
+    TransactionRequest,
+    Header, 
+    GethDebugTracingCallOptions,
+) -> Result<GethTrace, eyre::Report> + Send>;

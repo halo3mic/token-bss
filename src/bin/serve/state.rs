@@ -5,29 +5,57 @@ use std::{
     str::FromStr,
     hash::Hash,
 };
-use alloy::providers::Provider;
-use alloy::transports::Transport;
+use alloy::{
+    providers::RootProvider, 
+    transports::Transport, 
+    network::Ethereum,
+};
 use crate::{
     config::DEFAULT_TIMEOUT_MS,
     db::RedisConnection,
 };
+use poor_mans_tracer::LocalTraceProvider;
 
 
 #[derive(Clone)]
-pub struct AppState<P, T, H> 
-    where P: Provider<T>, T: Transport + Clone, H: Sync + Send + Clone + 'static
+pub enum ProviderType<T> 
+    where T: Transport + Clone
 {
-    pub providers: Arc<HashMap<Chain, AppProvider<P, T, H>>>,
+    RootProvider(RootProvider<T>),
+    LocalTraceProvider(LocalTraceProvider<T, Ethereum>),
+}
+
+impl<T> From<RootProvider<T>> for ProviderType<T> 
+    where T: Transport + Clone
+{
+    fn from(provider: RootProvider<T, Ethereum>) -> Self {
+        Self::RootProvider(provider)
+    }
+}
+
+impl<T> From<LocalTraceProvider<T, Ethereum>> for ProviderType<T> 
+    where T: Transport + Clone
+{
+    fn from(provider: LocalTraceProvider<T, Ethereum>) -> Self {
+        Self::LocalTraceProvider(provider)
+    }
+}
+
+#[derive(Clone)]
+pub struct AppState<T, H> 
+    where T: Transport + Clone, H: Sync + Send + Clone + 'static
+{
+    pub providers: Arc<HashMap<Chain, AppProvider<T, H>>>,
     pub db_connection: Option<Arc<Mutex<RedisConnection>>>,
     pub timeout_ms: u64,
 }
 
-impl<P, T, H> AppState<P, T, H> 
-    where P: Provider<T>, T: Transport + Clone, H: Sync + Send + Clone + 'static
+impl<T, H> AppState<T, H> 
+    where T: Transport + Clone, H: Sync + Send + Clone + 'static
 {
 
     pub fn new(
-        providers: HashMap<Chain, AppProvider<P, T, H>>,
+        providers: HashMap<Chain, AppProvider<T, H>>,
         db_connection: Option<RedisConnection>,
         timeout_ms: u64,
     ) -> Self {
@@ -39,12 +67,11 @@ impl<P, T, H> AppState<P, T, H>
     }
 }
 
-pub struct AppProviders<P, T, H>(HashMap<Chain, AppProvider<P, T, H>>)
-    where P: Provider<T>, T: Transport + Clone, H: Sync + Send + Clone + 'static;
+pub struct AppProviders<T, H>(HashMap<Chain, AppProvider<T, H>>)
+    where T: Transport + Clone, H: Sync + Send + Clone + 'static;
 
-
-impl<P, T, H> AppProviders<P, T, H> 
-    where P: Provider<T>, T: Transport + Clone, H: Sync + Send + Clone + 'static
+impl<T, H> AppProviders<T, H> 
+    where T: Transport + Clone, H: Sync + Send + Clone + 'static
 {
     pub fn new() -> Self {
         Self(HashMap::new())
@@ -53,26 +80,25 @@ impl<P, T, H> AppProviders<P, T, H>
     pub fn set_provider(
         &mut self,
         chain: Chain,
-        provider: P,
+        provider: ProviderType<T>,
         handler: Option<H>,
     ) {
         self.0.insert(chain, AppProvider { 
             provider, 
             _handler: handler, 
-            _phantom: std::marker::PhantomData,
         });
     }
 
-    pub fn build(self) -> HashMap<Chain, AppProvider<P, T, H>> {
+    pub fn build(self) -> HashMap<Chain, AppProvider<T, H>> {
         self.0
     }
 }
 
-impl<P, T, H> From<AppProviders<P, T, H>> for AppState<P, T, H> 
-    where P: Provider<T>, T: Transport + Clone, H: Sync + Send + Clone + 'static
+impl<T, H> From<AppProviders<T, H>> for AppState<T, H> 
+    where T: Transport + Clone, H: Sync + Send + Clone + 'static
 {
-    fn from(providers: AppProviders<P, T, H>) -> Self {
-        Self { 
+    fn from(providers: AppProviders<T, H>) -> Self {
+        Self {
             providers: Arc::new(providers.build()),
             timeout_ms: DEFAULT_TIMEOUT_MS,
             db_connection: None
@@ -80,16 +106,15 @@ impl<P, T, H> From<AppProviders<P, T, H>> for AppState<P, T, H>
     }
 }
 
-pub struct AppProvider<P, T, H> 
-    where P: Provider<T>, T: Transport + Clone, H: Sync + Send + Clone + 'static
+pub struct AppProvider<T, H> 
+    where T: Transport + Clone, H: Sync + Send + Clone + 'static
 {
-    pub provider: P,
+    pub provider: ProviderType<T>,
     _handler: Option<H>, // Handler for cases like Anvil
-    _phantom: std::marker::PhantomData<T>,
 }
 
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Chain {
     Ethereum, 
     Arbitrum,
@@ -104,7 +129,7 @@ impl FromStr for Chain {
         match s {
             "ethereum" | "eth" => Ok(Chain::Ethereum),
             "arbitrum" | "arb" => Ok(Chain::Arbitrum),
-            // "optimism" | "opt" => Ok(Chain::Optimism),
+            "optimism" | "opt" => Ok(Chain::Optimism),
             "avalanche" | "avax" => Ok(Chain::Avalanche),
             _ => Err(eyre::eyre!("Invalid chain")),
         }
