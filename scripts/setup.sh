@@ -2,11 +2,11 @@
 
 set -e
 
-echo "Installing erc20-topup..."
+echo "Installing token-bss..."
 
 BASE_DIR=${HOME}
-ERC20_TOPUP_BIN_DIR="${BASE_DIR}/.erc20-topup/bin"
-EXECUTABLE_PATH="${ERC20_TOPUP_BIN_DIR}/erc20-topup"
+ERC20_TOPUP_BIN_DIR="${BASE_DIR}/.token-bss/bin"
+EXECUTABLE_PATH="${ERC20_TOPUP_BIN_DIR}/token-bss"
 
 cargo build --release
 if [ $? -ne 0 ]; then
@@ -15,7 +15,7 @@ if [ $? -ne 0 ]; then
 fi
 
 mkdir -p "${ERC20_TOPUP_BIN_DIR}"
-cp "./target/release/erc20-topup" "${EXECUTABLE_PATH}"
+cp "./target/release/token-bss" "${EXECUTABLE_PATH}"
 chmod +x "${EXECUTABLE_PATH}"
 
 case $SHELL in
@@ -34,4 +34,4 @@ if [[ ":$PATH:" != *":${ERC20_TOPUP_BIN_DIR}:"* ]]; then
     echo >> "${PROFILE}" && echo "export PATH=\"\$PATH:${ERC20_TOPUP_BIN_DIR}\"" >> "${PROFILE}"
 fi
 
-echo && echo "Added erc20-topup to PATH in ${PROFILE}. If the script was not sourced, run 'source ${PROFILE}' or start a new terminal session to use erc20-topup."
+echo && echo "Added token-bss to PATH in ${PROFILE}. If the script was not sourced, run 'source ${PROFILE}' or start a new terminal session to use token-bss."

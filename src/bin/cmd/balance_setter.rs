@@ -25,7 +25,7 @@ pub async fn set_balance<P, T>(
     let (contract, slot, _update_ratio, lang) = match slot_info {
         Some(slot_info) => slot_info,
         None => {
-            erc20_topup::find_slot(
+            token_bss::find_slot(
                 provider, 
                 token,
                 Some(holder), 
@@ -58,7 +58,7 @@ pub async fn update_balance<P, T>(
 ) -> Result<U256> 
     where P: Provider<T>, T: Transport + Clone
 {
-    let map_loc = erc20_topup::EvmLanguage::from_str(&lang_str)?.mapping_loc(slot, holder);
+    let map_loc = token_bss::EvmLanguage::from_str(&lang_str)?.mapping_loc(slot, holder);
     update_storage(&provider.client(), storage_contract, map_loc.into(), new_bal.into()).await?;
     let reflected_bal = call_balanceof(&provider, token, holder).await?;
     Ok(reflected_bal.into())
@@ -199,7 +199,7 @@ mod tests {
         let token = Address::from_str("0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0")?;
         let holder = Address::from_str("0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326")?;
 
-        let map_loc = erc20_topup::EvmLanguage::Solidity.mapping_loc(
+        let map_loc = token_bss::EvmLanguage::Solidity.mapping_loc(
             B256::from(U256::wrapping_from(0x33)),
             holder,
         );

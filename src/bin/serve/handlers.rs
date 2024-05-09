@@ -213,14 +213,14 @@ async fn _search_handler<T, H>(
         .provider;
     let response = match provider {
         ProviderType::RootProvider(prov) => {
-            erc20_topup::find_slot(&prov, token, None, None).await
+            token_bss::find_slot(&prov, token, None, None).await
         },
         ProviderType::LocalTraceProvider(prov) => {
             let prov_clone = prov.clone();
-            let trace_fn: erc20_topup::TraceFn = Box::new(move |a, b, c| {
+            let trace_fn: token_bss::TraceFn = Box::new(move |a, b, c| {
                 poor_mans_tracer::geth_trace_sync(&prov_clone, &a, b, c)
             });
-            erc20_topup::find_slot(&prov, token, None, Some(trace_fn)).await
+            token_bss::find_slot(&prov, token, None, Some(trace_fn)).await
         },
     };
     let response = response

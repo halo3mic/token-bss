@@ -56,7 +56,7 @@ async fn find_storage_slots(
     let mut task_set = tokens.into_iter().map(|token| {
         let provider = provider.clone();
         async move {
-            (token, erc20_topup::find_slot(&provider, token, None, None).await)
+            (token, token_bss::find_slot(&provider, token, None, None).await)
         }
     }).collect::<JoinSet<_>>();
 

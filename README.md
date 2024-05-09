@@ -1,4 +1,6 @@
-# ERC20-topup 🚰
+# Token BSS Searcher 🦌
+
+ERC20 Token Balance Storage Slot Searcher
 
 ![image](./assets/intro.gif)
 
@@ -24,8 +26,8 @@ It supports the majority of ERC20 tokens accross Vyper and Solidity. Even proxie
 **Clone the repository and run the setup script.**
 
 ```bash
-$ git clone https://github.com/halo3mic/erc20-topup
-$ cd erc20-topup
+$ git clone https://github.com/halo3mic/token-bss
+$ cd token-bss
 $ source ./scripts/setup.sh
 ```
 
@@ -36,7 +38,7 @@ $ source ./scripts/setup.sh
 To find the storage slot of an ERC20 token, you can specify the RPC URL of an Anvil fork or a live network. Add the ``--unformatted` flag if you prefer the output in CSV format.
 
 ```bash
-$ erc20-topup find-storage-slot <TOKEN_ADDRESSES> [OPTIONS]
+$ token-bss find-storage-slot <TOKEN_ADDRESSES> [OPTIONS]
 ```
 __Options__
 * `--rpc-url <RPC_URL>`: Specify the RPC URL of the Anvil fork.
@@ -44,7 +46,7 @@ __Options__
 * `--unformatted`: Output the result in an unformatted single line, separated by commas.
 #### Example
 ```
-$ erc20-topup find-storage-slot 0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F,0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --fork-rpc-url $ETH_RPC
+$ token-bss find-storage-slot 0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F,0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --fork-rpc-url $ETH_RPC
 ```
 ```
 Token: 0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f
@@ -58,7 +60,7 @@ Language: solidity
 Update the balance of an ERC20 token on an Anvil fork with the following command:
 
 ```
-$ erc20-topup set-balance <TOKEN> <HOLDER> <NEW_BALANCE> [OPTIONS]
+$ token-bss set-balance <TOKEN> <HOLDER> <NEW_BALANCE> [OPTIONS]
 ```
 __Options__
 * `--rpc-url <RPC_URL>`: Specify the RPC URL of the Anvil fork.

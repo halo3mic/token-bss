@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
     
     for (symbol, token) in ethereum_tokens {
         println!("Checking {symbol}({token:?})");
-        match erc20_topup::find_slot(&provider, token, None, None).await {
+        match token_bss::find_slot(&provider, token, None, None).await {
             Ok((contract, slot, update_ratio, lang)) => {
                 println!("{symbol}({token:?}): {contract:?}({lang}) - {slot:?} / ΔR: {update_ratio}")
             }
