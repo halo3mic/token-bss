@@ -42,9 +42,7 @@ pub struct AnvilConfig {
 impl Config {
 
     pub fn from_env() -> Result<Self> {
-        let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        path.push("./src/bin/serve/.env"); // todo: make this more robust
-        dotenv::from_path(path).ok();
+        dotenv::dotenv()?;
 
         // Server config
         let host = std::env::var("SERVER_HOST").ok()
