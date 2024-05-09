@@ -1,5 +1,6 @@
 use alloy::primitives::{Address, U256};
 use alloy::transports::Transport;
+use alloy::providers::Provider;
 use serde::{Serialize, Deserialize};
 use std::time::Instant;
 use tokio::time::{timeout, Duration};
@@ -9,7 +10,7 @@ use axum::{
     http::StatusCode,
 };
 use tracing::{info, error};
-use super::state::{Chain, AppState, ProviderType};
+use super::state::{Chain, AppState};
 
 
 #[derive(Debug, Serialize)]
@@ -144,11 +145,11 @@ enum InfoSource {
     Database,
 }
 
-pub async fn search_handler<T, H>(
-    State(app_state): State<AppState<T, H>>,
+pub async fn search_handler<P, T, H>(
+    State(app_state): State<AppState<P, T, H>>,
     Path((chain_str, token_str)): Path<(String, String)>
 ) -> Result<Json<Response>, AppError> 
-    where T: Transport + Clone, H: Sync + Send + Clone + 'static
+    where P: Provider<T> + 'static, T: Transport + Clone, H: Sync + Send + Clone + 'static
 {
     let rtime0 = Instant::now();
     let request_id = uuid::Uuid::new_v4().as_u128().to_string();
@@ -185,11 +186,11 @@ pub async fn search_handler<T, H>(
     res.map(|(res, _)| res)
 }
 
-async fn _search_handler<T, H>(
-    State(app_state): State<AppState<T, H>>,
+async fn _search_handler<P, T, H>(
+    State(app_state): State<AppState<P, T, H>>,
     Path((chain_str, token_str)): Path<(String, String)>
 ) -> Result<(Json<Response>, InfoSource), AppError> 
-    where T: Transport + Clone, H: Sync + Send + Clone + 'static
+    where P: Provider<T> + 'static, T: Transport + Clone, H: Sync + Send + Clone + 'static
 {
     let chain = chain_str.parse::<Chain>()
         .map_err(|_| AppError::UserError(UserError::ChainNotFound))?;
@@ -209,21 +210,21 @@ async fn _search_handler<T, H>(
 
     let provider = &app_state.providers
         .get(&chain)
-        .ok_or(AppError::UserError(UserError::ProviderNotFound))?
-        .provider;
-    let response = match provider {
-        ProviderType::RootProvider(prov) => {
-            token_bss::find_slot(&prov, token, None, None).await
-        },
-        ProviderType::LocalTraceProvider(prov) => {
-            let prov_clone = prov.clone();
+        .ok_or(AppError::UserError(UserError::ProviderNotFound))?;
+
+    let trace_fn =
+        if provider.local_tracing {
+            let prov_clone = provider.provider.clone();
             let trace_fn: token_bss::TraceFn = Box::new(move |a, b, c| {
+                // todo: make the caller provide the provider as an arg
                 poor_mans_tracer::geth_trace_sync(&prov_clone, &a, b, c)
             });
-            token_bss::find_slot(&prov, token, None, Some(trace_fn)).await
-        },
-    };
-    let response = response
+            Some(trace_fn)
+        } else {
+            None
+        };
+
+    let response = token_bss::find_slot(&provider.provider, token, None, trace_fn).await
         .map_err(|err| {
             if err.to_string().contains("No valid slots found") {
                 if let Some(db_conn) = &app_state.db_connection {

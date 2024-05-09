@@ -43,6 +43,7 @@ async fn find_storage_slots(
 ) -> Result<()> {
     let tokens = utils::parse_tokens_str(tokens)?;
 
+    // todo: use poor-mans-tracer instead of spinning up anvil
     let (rpc_url, _anvil) = 
         if let Some(fork_rpc_url) = fork_rpc_url {
             let anvil = utils::spawn_anvil(Some(&fork_rpc_url));
