@@ -6,7 +6,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  ETH_RPC_URL: https://eth.drpc.org
+  ETH_RPC_URL: https://ethereum-rpc.publicnode.com
 
 jobs:
   build_and_test:
