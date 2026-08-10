@@ -59,6 +59,10 @@ impl Config {
             Chain::Arbitrum,
             Chain::Optimism,
             Chain::Avalanche,
+            Chain::Base,
+            Chain::Polygon,
+            Chain::Plasma,
+            Chain::Unichain,
         ];
         let chain_configs = available_chains.into_iter().filter_map(|chain| {
             let primary_key = format!("{}_RPC", chain.to_string().to_uppercase());

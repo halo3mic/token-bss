@@ -37,7 +37,7 @@ use alloy::network::Ethereum;
 use alloy::transports::http::Http;
 use reqwest::Client;
 use std::sync::Arc;
-use state::{Chain, AppProviders};
+use state::AppProviders;
 use config::RpcUrl;
 
 
@@ -54,7 +54,7 @@ fn make_app_http_providers(configs: &Config) -> Result<AppProviders<ReqwestProvi
                     let anvil = utils::spawn_anvil(
                         Some(&url),
                         Some(anvil_config),
-                        Some(matches!(chain_config.chain, Chain::Optimism)),
+                        Some(chain_config.chain.is_op_stack()),
                     );
                     let anvil_endpoint = anvil.endpoint(); // Store the value of anvil.endpoint() in a variable
                     info!("Added provider of Anvil fork for chain: {:?}", chain_config.chain);

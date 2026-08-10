@@ -98,6 +98,17 @@ pub enum Chain {
     Arbitrum,
     Optimism,
     Avalanche,
+    Base,
+    Polygon,
+    Plasma,
+    Unichain,
+}
+
+impl Chain {
+    /// OP-stack chains need Anvil's `--optimism` flag when forking.
+    pub fn is_op_stack(&self) -> bool {
+        matches!(self, Chain::Optimism | Chain::Base | Chain::Unichain)
+    }
 }
 
 impl FromStr for Chain {
@@ -109,6 +120,10 @@ impl FromStr for Chain {
             "arbitrum" | "arb" => Ok(Chain::Arbitrum),
             "optimism" | "opt" => Ok(Chain::Optimism),
             "avalanche" | "avax" => Ok(Chain::Avalanche),
+            "base" => Ok(Chain::Base),
+            "polygon" | "pol" | "matic" => Ok(Chain::Polygon),
+            "plasma" => Ok(Chain::Plasma),
+            "unichain" | "uni" => Ok(Chain::Unichain),
             _ => Err(eyre::eyre!("Invalid chain")),
         }
     }
