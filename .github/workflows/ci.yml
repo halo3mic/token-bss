@@ -2,11 +2,13 @@ name: Cargo Build & Test
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 env:
   CARGO_TERM_COLOR: always
-  ETH_RPC_URL: https://eth.drpc.org
+  ETH_RPC_URL: https://ethereum-rpc.publicnode.com
 
 jobs:
   build_and_test:
@@ -29,6 +31,6 @@ jobs:
       - name: Run tests
         run: |
             export PATH="$PATH:/home/runner/.config/.foundry/bin"
-            cargo test --verbose -- --nocapture
+            cargo test -- --nocapture
       - name: Run Clippy
         run: cargo clippy

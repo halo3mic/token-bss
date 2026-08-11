@@ -26,7 +26,7 @@ impl RedisConnection {
     pub fn store_search_response(&mut self, address: &Address, chain_id: &Chain, result: &SearchResponseWrapper) -> Result<()> {
         let key = make_key(address, chain_id);
         let val_str = serde_json::to_string(result)?;
-        self.0.set(&key, val_str)?;
+        self.0.set::<_, _, ()>(&key, val_str)?;
         Ok(())
     }
 

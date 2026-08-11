@@ -8,7 +8,21 @@ use crate::common::*;
 
 
 const BALANCEOF_4BYTE: &str = "0x70a08231";
+const ALLOWANCE_4BYTE: &str = "0xdd62ed3e";
 const CALL_GAS_LIMIT: u128 = 200_000;
+
+fn view_call_req(from: Address, to: Address, input: Bytes) -> TransactionRequest {
+    // Zero fees so eth_call / debug_traceCall don't fail on OP-stack forks when
+    // `from` has no native balance (e.g. Unichain Anvil with --optimism).
+    TransactionRequest::default()
+        .with_input(input)
+        .with_gas_limit(CALL_GAS_LIMIT)
+        .with_max_fee_per_gas(0)
+        .with_max_priority_fee_per_gas(0)
+        .with_gas_price(0)
+        .with_from(from)
+        .with_to(to.into())
+}
 
 pub async fn call_request<P, T>(
     provider: &P,
@@ -43,17 +57,26 @@ pub async fn call_request_with_storage_overrides<P, T>(
 }
 
 pub fn balanceof_call_req(holder: Address, token: Address) -> Result<TransactionRequest> {
-    let call_req = TransactionRequest::default()
-        .with_input(balanceof_input_data(holder)?)
-        .with_gas_limit(CALL_GAS_LIMIT)
-        .with_from(holder)
-        .with_to(token.into());
-    Ok(call_req)
+    Ok(view_call_req(holder, token, balanceof_input_data(holder)?))
+}
+
+pub fn allowance_call_req(owner: Address, spender: Address, token: Address) -> Result<TransactionRequest> {
+    Ok(view_call_req(owner, token, allowance_input_data(owner, spender)?))
 }
 
 fn balanceof_input_data(holder: Address) -> Result<Bytes> {
     let holder = format!("{:?}", holder)[2..].to_string();
     let data_str = format!("{BALANCEOF_4BYTE}000000000000000000000000{holder}");
+    let data = Bytes::from_str(&data_str)?;
+    Ok(data)
+}
+
+fn allowance_input_data(owner: Address, spender: Address) -> Result<Bytes> {
+    let owner = format!("{:?}", owner)[2..].to_string();
+    let spender = format!("{:?}", spender)[2..].to_string();
+    let data_str = format!(
+        "{ALLOWANCE_4BYTE}000000000000000000000000{owner}000000000000000000000000{spender}"
+    );
     let data = Bytes::from_str(&data_str)?;
     Ok(data)
 }

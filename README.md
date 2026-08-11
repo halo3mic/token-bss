@@ -19,6 +19,10 @@ The API is live on: `http://token-bss.xyz`.
 * arbitrum / arb
 * optimism / opt
 * avalanche / avax
+* base
+* polygon / pol / matic
+* plasma
+* unichain / uni
 
 
 #### Example
