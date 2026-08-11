@@ -31,6 +31,6 @@ jobs:
       - name: Run tests
         run: |
             export PATH="$PATH:/home/runner/.config/.foundry/bin"
-            cargo test --verbose -- --nocapture
+            cargo test -- --nocapture
       - name: Run Clippy
         run: cargo clippy

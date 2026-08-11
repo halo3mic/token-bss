@@ -121,10 +121,13 @@ impl TraceParser {
     }
 
     fn parse_sha3(&mut self, log: StructLog) -> Result<()> {
-        let memory = hex::decode(log.memory.as_ref()
+        // Anvil/geth may return memory words with or without a `0x` prefix.
+        let memory_hex: String = log.memory.as_ref()
             .expect("SHA3 op should have memory content")
-            .join("")
-        )?;
+            .iter()
+            .map(|word| word.strip_prefix("0x").unwrap_or(word.as_str()))
+            .collect();
+        let memory = hex::decode(memory_hex)?;
         let stack = log.stack.as_ref()
             .expect("SHA3 op should have stack content");
         let mem_offset = stack[stack.len()-1].to::<usize>();
@@ -156,4 +159,24 @@ impl TraceParser {
         self.holder = holder;
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_sha3_accepts_0x_prefixed_memory_words() {
+        let mut keccak = StructLog::default();
+        keccak.op = "KECCAK256".into();
+        keccak.depth = 1;
+        keccak.memory = Some(vec![
+            "0x0000000000000000000000000000000000000000000000000000000000000001".into(),
+            "0x0000000000000000000000000000000000000000000000000000000000000002".into(),
+        ]);
+        // stack top = offset, next = length
+        keccak.stack = Some(vec![U256::from(64), U256::from(0)]);
+
+        TraceParser::parse(vec![keccak], Address::ZERO, Address::ZERO).unwrap();
+    }
 }
